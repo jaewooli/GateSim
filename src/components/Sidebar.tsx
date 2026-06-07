@@ -210,6 +210,9 @@ export const Sidebar: React.FC<SidebarProps> = ({ onAddNode, customGates, active
   // Define preset IDs that are treated as official advanced blocks
   const presetBlockIds = ['sub-half-adder', 'sub-sr-latch', 'sub-mux', 'sub-full-adder'];
 
+  // All system presets to prevent duplicates in user Custom Gates section
+  const systemPresetIds = [...presetBlockIds, 'sub-nand', 'sub-nor', 'sub-xor', 'sub-xnor'];
+
   return (
     <div className="sidebar-container">
       {/* Category: Inputs */}
@@ -304,13 +307,13 @@ export const Sidebar: React.FC<SidebarProps> = ({ onAddNode, customGates, active
       <div className="toolbox-group">
         <div className="toolbox-title">Custom Gates (User Built)</div>
         <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
-          {Object.values(customGates).filter((g) => !presetBlockIds.includes(g.id)).length === 0 ? (
+          {Object.values(customGates).filter((g) => !systemPresetIds.includes(g.id)).length === 0 ? (
             <div style={{ fontSize: '11px', color: 'var(--text-muted)', fontStyle: 'italic', padding: '8px 0' }}>
               No custom gates packaged yet. Build a sub-circuit in another tab and click "Package Gate".
             </div>
           ) : (
             Object.values(customGates)
-              .filter((g) => !presetBlockIds.includes(g.id))
+              .filter((g) => !systemPresetIds.includes(g.id))
               .map((gate) => (
                 <div
                   key={gate.id}
