@@ -234,6 +234,33 @@ const DEMO_TABS: Tab[] = [
       ],
     },
   },
+  // 9. Full Adder Preset
+  {
+    id: 'sub-full-adder',
+    name: 'Full Adder',
+    state: {
+      nodes: [
+        createDemoNode('fa-in-a', 'PORT_IN', 'IN PORT', 60, 80, 0, 1, undefined, 'A'),
+        createDemoNode('fa-in-b', 'PORT_IN', 'IN PORT', 60, 200, 0, 1, undefined, 'B'),
+        createDemoNode('fa-in-cin', 'PORT_IN', 'IN PORT', 60, 320, 0, 1, undefined, 'Cin'),
+        createDemoNode('fa-ha-1', 'CUSTOM', 'HALF_ADDER', 240, 80, 2, 2, 'sub-half-adder', 'HA 1'),
+        createDemoNode('fa-ha-2', 'CUSTOM', 'HALF_ADDER', 460, 180, 2, 2, 'sub-half-adder', 'HA 2'),
+        createDemoNode('fa-or', 'OR', 'OR', 660, 80, 2, 1),
+        createDemoNode('fa-out-sum', 'PORT_OUT', 'OUT PORT', 840, 240, 1, 0, undefined, 'Sum'),
+        createDemoNode('fa-out-cout', 'PORT_OUT', 'OUT PORT', 840, 80, 1, 0, undefined, 'Cout'),
+      ],
+      connections: [
+        { id: 'fa-conn-1', fromPinId: 'fa-in-a-out-0', toPinId: 'fa-ha-1-in-0' },
+        { id: 'fa-conn-2', fromPinId: 'fa-in-b-out-0', toPinId: 'fa-ha-1-in-1' },
+        { id: 'fa-conn-3', fromPinId: 'fa-ha-1-out-0', toPinId: 'fa-ha-2-in-0' },
+        { id: 'fa-conn-4', fromPinId: 'fa-in-cin-out-0', toPinId: 'fa-ha-2-in-1' },
+        { id: 'fa-conn-5', fromPinId: 'fa-ha-1-out-1', toPinId: 'fa-or-in-0' },
+        { id: 'fa-conn-6', fromPinId: 'fa-ha-2-out-1', toPinId: 'fa-or-in-1' },
+        { id: 'fa-conn-7', fromPinId: 'fa-ha-2-out-0', toPinId: 'fa-out-sum-in-0' },
+        { id: 'fa-conn-8', fromPinId: 'fa-or-out-0', toPinId: 'fa-out-cout-in-0' },
+      ],
+    },
+  },
 ];
 
 const DEMO_CUSTOM_GATES: Record<string, SubCircuitDefinition> = {
@@ -285,6 +312,13 @@ const DEMO_CUSTOM_GATES: Record<string, SubCircuitDefinition> = {
     color: '#FFB800',
     nodes: DEMO_TABS[7].state.nodes,
     connections: DEMO_TABS[7].state.connections,
+  },
+  'sub-full-adder': {
+    id: 'sub-full-adder',
+    name: 'FULL_ADDER',
+    color: '#00FF66',
+    nodes: DEMO_TABS[8].state.nodes,
+    connections: DEMO_TABS[8].state.connections,
   },
 };
 
