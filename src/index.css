@@ -1,0 +1,245 @@
+:root {
+  --primary-bg: #E6E7E3;
+  --secondary-bg: #F4F5F2;
+  --accent: #B6E63A;
+  --accent-hover: #a1ce30;
+  --accent-light: rgba(182, 230, 58, 0.2);
+  --text-primary: #1A1A1A;
+  --text-muted: #5F5F5F;
+  --border-color: #D1D3CD;
+  --logic-low: #D1D3CD;
+  --logic-high: #B6E63A;
+  
+  --border-radius-lg: 24px;
+  --border-radius-md: 16px;
+  --border-radius-sm: 8px;
+  
+  --shadow-soft: 0px 12px 32px rgba(0, 0, 0, 0.06);
+  --shadow-inset: inset 0px 2px 8px rgba(0, 0, 0, 0.05);
+  
+  --sans: 'Outfit', 'Inter', system-ui, -apple-system, sans-serif;
+  --mono: ui-monospace, 'Fira Code', monospace;
+  
+  font-family: var(--sans);
+  background-color: var(--primary-bg);
+  color: var(--text-primary);
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  padding: 0;
+  background-color: var(--primary-bg);
+  color: var(--text-primary);
+  overflow: hidden;
+  height: 100vh;
+  width: 100vw;
+  -webkit-font-smoothing: antialiased;
+}
+
+#root {
+  display: flex;
+  flex-direction: column;
+  height: 100vh;
+  width: 100vw;
+  overflow: hidden;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+/* Scrollbar styling */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+::-webkit-scrollbar-thumb {
+  background: var(--border-color);
+  border-radius: var(--border-radius-sm);
+}
+::-webkit-scrollbar-thumb:hover {
+  background: var(--text-muted);
+}
+
+/* Button & Tactile UI Base styles */
+button {
+  font-family: var(--sans);
+  font-weight: 600;
+  font-size: 14px;
+  border: 1px solid var(--border-color);
+  background-color: var(--secondary-bg);
+  color: var(--text-primary);
+  border-radius: var(--border-radius-sm);
+  padding: 8px 16px;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  transition: transform 0.2s cubic-bezier(0.16, 1, 0.3, 1), 
+              background-color 0.2s ease, 
+              border-color 0.2s ease;
+}
+
+button:hover {
+  transform: translateY(-2px);
+  background-color: #EBECE8;
+  border-color: var(--text-muted);
+}
+
+button:active {
+  transform: translateY(0);
+  background-color: var(--border-color);
+}
+
+/* Primary Button Style */
+button.primary {
+  background-color: var(--accent);
+  border-color: var(--accent);
+  color: var(--text-primary);
+}
+
+button.primary:hover {
+  background-color: var(--accent-hover);
+  border-color: var(--accent-hover);
+}
+
+/* Danger Button Style */
+button.danger {
+  background-color: #f7e6e6;
+  border-color: #e5b2b2;
+  color: #c53030;
+}
+
+button.danger:hover {
+  background-color: #fddddd;
+  border-color: #c53030;
+}
+
+/* Secondary Button Outline */
+button.outline {
+  background-color: transparent;
+  border: 1px solid var(--border-color);
+}
+
+button.outline:hover {
+  background-color: var(--secondary-bg);
+}
+
+/* Typography styles */
+h1, h2, h3, h4 {
+  margin: 0;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+}
+
+/* Node/Gate shapes styling on SVG */
+.gate-body {
+  fill: var(--secondary-bg);
+  stroke: var(--border-color);
+  stroke-width: 2.5;
+  transition: stroke 0.15s ease, filter 0.15s ease;
+  filter: drop-shadow(0px 4px 12px rgba(0, 0, 0, 0.03));
+}
+
+.gate-body.selected {
+  stroke: var(--text-primary);
+  stroke-width: 3.5;
+}
+
+.gate-label {
+  font-family: var(--sans);
+  font-size: 13px;
+  font-weight: 700;
+  fill: var(--text-primary);
+  user-select: none;
+  pointer-events: none;
+}
+
+.gate-subtext {
+  font-family: var(--mono);
+  font-size: 10px;
+  fill: var(--text-muted);
+  user-select: none;
+  pointer-events: none;
+}
+
+/* Pins rendering */
+.pin-circle {
+  fill: var(--secondary-bg);
+  stroke: var(--border-color);
+  stroke-width: 2;
+  cursor: crosshair;
+  transition: r 0.15s ease, fill 0.15s ease, stroke 0.15s ease;
+}
+
+.pin-circle:hover {
+  r: 7.5;
+  stroke: var(--text-primary);
+  fill: var(--accent);
+}
+
+.pin-circle.connected-high {
+  fill: var(--logic-high);
+  stroke: var(--logic-high);
+}
+
+.pin-circle.connected-low {
+  fill: var(--logic-low);
+  stroke: var(--border-color);
+}
+
+/* Wire paths rendering */
+.wire-path {
+  fill: none;
+  stroke-width: 3;
+  transition: stroke 0.2s ease, stroke-width 0.2s ease;
+  cursor: pointer;
+}
+
+.wire-path.high {
+  stroke: var(--logic-high);
+  filter: drop-shadow(0px 0px 4px var(--logic-high));
+  stroke-width: 3.5;
+}
+
+.wire-path.low {
+  stroke: var(--logic-low);
+  stroke-width: 3;
+}
+
+.wire-path-hover-box {
+  fill: none;
+  stroke: transparent;
+  stroke-width: 12;
+  cursor: pointer;
+}
+
+.wire-container:hover .wire-path.low {
+  stroke: var(--text-muted);
+  stroke-width: 4;
+}
+
+.wire-container:hover .wire-path.high {
+  stroke: var(--accent-hover);
+  stroke-width: 4.5;
+}
+
+.wire-draft-path {
+  fill: none;
+  stroke: var(--text-muted);
+  stroke-width: 2.5;
+  stroke-dasharray: 5, 5;
+  pointer-events: none;
+}
+
+/* Canvas Grid Background */
+.canvas-grid {
+  fill: url(#grid-pattern);
+}

@@ -1,0 +1,443 @@
+.app-container {
+  display: flex;
+  flex-direction: column;
+  height: 100vh;
+  width: 100vw;
+  overflow: hidden;
+  background-color: var(--primary-bg);
+}
+
+/* Header & Tab Bar Layout */
+.header-container {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 12px 24px;
+  background-color: var(--secondary-bg);
+  border-bottom: 2px solid var(--border-color);
+  z-index: 10;
+}
+
+.logo-section {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.logo-title {
+  font-size: 20px;
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--text-primary);
+}
+
+.logo-badge {
+  background-color: var(--accent);
+  color: var(--text-primary);
+  font-size: 10px;
+  font-weight: 800;
+  padding: 2px 6px;
+  border-radius: var(--border-radius-sm);
+  letter-spacing: 0.1em;
+}
+
+.action-bar {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.divider {
+  width: 2px;
+  height: 24px;
+  background-color: var(--border-color);
+}
+
+/* Tabs Panel */
+.tab-manager {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 24px 0;
+  background-color: var(--primary-bg);
+  border-bottom: 1px solid var(--border-color);
+  overflow-x: auto;
+}
+
+.tab-button {
+  padding: 10px 16px;
+  background-color: transparent;
+  border: 1px solid transparent;
+  border-bottom: none;
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--text-muted);
+  border-radius: 12px 12px 0 0;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  transition: all 0.2s ease;
+  transform: none; /* No translation on tab hover */
+}
+
+.tab-button:hover {
+  background-color: rgba(255, 255, 255, 0.4);
+  color: var(--text-primary);
+  transform: none;
+}
+
+.tab-button.active {
+  background-color: var(--secondary-bg);
+  border-color: var(--border-color);
+  color: var(--text-primary);
+  position: relative;
+  top: 1px;
+  z-index: 2;
+  box-shadow: 0px -4px 12px rgba(0, 0, 0, 0.02);
+}
+
+.tab-close {
+  background: none;
+  border: none;
+  padding: 2px;
+  font-size: 10px;
+  cursor: pointer;
+  color: var(--text-muted);
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.tab-close:hover {
+  background-color: rgba(0, 0, 0, 0.05);
+  color: var(--text-primary);
+  transform: none;
+}
+
+.add-tab-btn {
+  background: none;
+  border: 1px dashed var(--border-color);
+  padding: 6px 12px;
+  font-size: 12px;
+  font-weight: 700;
+  border-radius: var(--border-radius-sm);
+  color: var(--text-muted);
+  margin-bottom: 4px;
+}
+
+.add-tab-btn:hover {
+  border-color: var(--text-primary);
+  color: var(--text-primary);
+  background-color: rgba(255, 255, 255, 0.5);
+  transform: none;
+}
+
+/* Editor Main Body Layout */
+.editor-body {
+  display: flex;
+  flex: 1;
+  overflow: hidden;
+  position: relative;
+}
+
+/* Left Sidebar - Component Toolbox */
+.sidebar-container {
+  width: 280px;
+  background-color: var(--secondary-bg);
+  border-right: 2px solid var(--border-color);
+  display: flex;
+  flex-direction: column;
+  padding: 24px;
+  overflow-y: auto;
+  gap: 24px;
+}
+
+.toolbox-group {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.toolbox-title {
+  font-size: 12px;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  color: var(--text-muted);
+  font-weight: 800;
+  margin-bottom: 4px;
+}
+
+.toolbox-list {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 10px;
+}
+
+.toolbox-item {
+  background-color: var(--primary-bg);
+  border: 1px solid var(--border-color);
+  border-radius: var(--border-radius-md);
+  padding: 12px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  cursor: grab;
+  user-select: none;
+  transition: transform 0.2s cubic-bezier(0.16, 1, 0.3, 1), 
+              border-color 0.2s ease, 
+              box-shadow 0.2s ease;
+}
+
+.toolbox-item:hover {
+  transform: translateY(-4px);
+  border-color: var(--text-primary);
+  box-shadow: var(--shadow-soft);
+}
+
+.toolbox-item:active {
+  cursor: grabbing;
+}
+
+.toolbox-item-icon {
+  width: 40px;
+  height: 28px;
+  pointer-events: none;
+}
+
+.toolbox-item-name {
+  font-size: 11px;
+  font-weight: 700;
+  text-align: center;
+}
+
+/* Custom Gates Section styles */
+.custom-gate-item {
+  grid-column: span 2;
+  flex-direction: row;
+  justify-content: space-between;
+  padding: 12px 16px;
+  border-left-width: 5px;
+}
+
+/* Center Canvas */
+.canvas-container {
+  flex: 1;
+  position: relative;
+  overflow: hidden;
+  background-color: var(--primary-bg);
+  outline: none;
+}
+
+.canvas-svg {
+  width: 100%;
+  height: 100%;
+  display: block;
+}
+
+/* Right Sidebar - Inspector Panel */
+.inspector-container {
+  width: 300px;
+  background-color: var(--secondary-bg);
+  border-left: 2px solid var(--border-color);
+  display: flex;
+  flex-direction: column;
+  padding: 24px;
+  overflow-y: auto;
+  gap: 20px;
+}
+
+.inspector-header {
+  border-bottom: 1px solid var(--border-color);
+  padding-bottom: 12px;
+  margin-bottom: 8px;
+}
+
+.inspector-title {
+  font-size: 16px;
+  font-weight: 800;
+}
+
+.inspector-subtitle {
+  font-size: 12px;
+  color: var(--text-muted);
+  font-family: var(--mono);
+}
+
+.inspector-group {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.inspector-label {
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--text-muted);
+}
+
+.inspector-input {
+  width: 100%;
+  padding: 10px 14px;
+  border-radius: var(--border-radius-sm);
+  border: 1px solid var(--border-color);
+  font-family: var(--sans);
+  font-size: 14px;
+  background-color: var(--primary-bg);
+  color: var(--text-primary);
+  outline: none;
+  transition: border-color 0.15s ease;
+}
+
+.inspector-input:focus {
+  border-color: var(--text-primary);
+}
+
+/* Bottom Status Bar */
+.status-bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 8px 24px;
+  background-color: var(--secondary-bg);
+  border-top: 1px solid var(--border-color);
+  font-family: var(--mono);
+  font-size: 11px;
+  color: var(--text-muted);
+  z-index: 10;
+}
+
+.status-left, .status-right {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+}
+
+.status-indicator {
+  display: inline-block;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background-color: var(--border-color);
+}
+
+.status-indicator.active {
+  background-color: var(--logic-high);
+  box-shadow: 0px 0px 6px var(--logic-high);
+  animation: pulse 1.5s infinite alternate;
+}
+
+.status-error {
+  color: #c53030;
+  font-weight: 700;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+/* Custom Gate Modal Styles */
+.modal-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background-color: rgba(26, 26, 26, 0.4);
+  backdrop-filter: blur(4px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 100;
+}
+
+.modal-container {
+  background-color: var(--secondary-bg);
+  border: 2px solid var(--border-color);
+  border-radius: var(--border-radius-lg);
+  padding: 32px;
+  width: 440px;
+  max-width: 90%;
+  box-shadow: var(--shadow-soft);
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+.modal-header {
+  font-size: 20px;
+  font-weight: 800;
+  border-bottom: 1px solid var(--border-color);
+  padding-bottom: 12px;
+}
+
+.modal-footer {
+  display: flex;
+  justify-content: flex-end;
+  gap: 12px;
+  margin-top: 12px;
+}
+
+/* Color selection indicators in Modal */
+.color-picker {
+  display: flex;
+  gap: 8px;
+}
+
+.color-option {
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  border: 2px solid transparent;
+  cursor: pointer;
+  transition: transform 0.15s ease, border-color 0.15s ease;
+}
+
+.color-option:hover {
+  transform: scale(1.1);
+}
+
+.color-option.selected {
+  border-color: var(--text-primary);
+  transform: scale(1.1);
+}
+
+/* Animation utilities */
+@keyframes pulse {
+  from { opacity: 0.5; }
+  to { opacity: 1; }
+}
+
+/* Floating controls inside Canvas (Zoom resetting / Panning help) */
+.canvas-controls {
+  position: absolute;
+  bottom: 20px;
+  left: 20px;
+  display: flex;
+  gap: 8px;
+  z-index: 5;
+  background-color: rgba(244, 245, 242, 0.85);
+  backdrop-filter: blur(4px);
+  padding: 6px;
+  border-radius: var(--border-radius-md);
+  border: 1px solid var(--border-color);
+  box-shadow: var(--shadow-soft);
+}
+
+.canvas-controls-btn {
+  background: none;
+  border: none;
+  padding: 6px;
+  border-radius: var(--border-radius-sm);
+  cursor: pointer;
+  font-size: 12px;
+  font-weight: 800;
+}
+
+.canvas-controls-btn:hover {
+  background-color: var(--primary-bg);
+  transform: none;
+}
