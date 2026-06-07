@@ -1,5 +1,5 @@
 import React, { useState, useRef } from 'react';
-import type { Node, Pin, NodeType } from '../types';
+import type { Node, Pin, NodeType, SubCircuitDefinition } from '../types';
 import type { CircuitHook } from '../hooks/useCircuitState';
 
 export const GATE_WIDTH = 110;
@@ -20,6 +20,30 @@ export function getPinPosition(node: Node, pinId: string) {
   const y = node.y + (index + 1) * (GATE_HEIGHT / (totalPins + 1));
 
   return { x, y };
+}
+
+export function getPinLabel(
+  node: Node,
+  pin: Pin,
+  customGates: Record<string, SubCircuitDefinition>
+) {
+  if (node.type !== 'CUSTOM' || !node.customGateId) return null;
+  const def = customGates[node.customGateId];
+  if (!def) return null;
+
+  if (pin.type === 'input') {
+    const portInNodes = [...def.nodes]
+      .filter((n) => n.type === 'PORT_IN')
+      .sort((a, b) => a.y - b.y);
+    const matchingPort = portInNodes[pin.index];
+    return matchingPort ? (matchingPort.label || matchingPort.name) : null;
+  } else {
+    const portOutNodes = [...def.nodes]
+      .filter((n) => n.type === 'PORT_OUT')
+      .sort((a, b) => a.y - b.y);
+    const matchingPort = portOutNodes[pin.index];
+    return matchingPort ? (matchingPort.label || matchingPort.name) : null;
+  }
 }
 
 interface CanvasProps {
@@ -43,6 +67,7 @@ export const Canvas: React.FC<CanvasProps> = ({ circuit }) => {
     wireDraft,
     setWireDraft,
     setActiveTabId,
+    showPinLabels,
   } = circuit;
 
   const { nodes, connections } = activeTab.state;
@@ -567,36 +592,76 @@ export const Canvas: React.FC<CanvasProps> = ({ circuit }) => {
                 {/* 4. RENDER INPUT PINS */}
                 {node.inputs.map((pin) => {
                   const pos = getPinPosition(node, pin.id);
+                  const label = getPinLabel(node, pin, customGates);
                   return (
-                    <circle
-                      key={pin.id}
-                      cx={pos.x}
-                      cy={pos.y}
-                      r="6"
-                      className={`pin-circle ${pin.value ? 'connected-high' : 'connected-low'}`}
-                      onMouseDown={(e) => handlePinMouseDown(e, pin, node)}
-                      onMouseUp={(e) => handlePinMouseUp(e, pin)}
-                    >
-                      <title>{`Input Pin ${pin.index + 1}: ${pin.value ? '1' : '0'}`}</title>
-                    </circle>
+                    <g key={pin.id}>
+                      <circle
+                        cx={pos.x}
+                        cy={pos.y}
+                        r="6"
+                        className={`pin-circle ${pin.value ? 'connected-high' : 'connected-low'}`}
+                        onMouseDown={(e) => handlePinMouseDown(e, pin, node)}
+                        onMouseUp={(e) => handlePinMouseUp(e, pin)}
+                      >
+                        <title>{`Input Pin ${pin.index + 1}: ${pin.value ? '1' : '0'}`}</title>
+                      </circle>
+                      {showPinLabels && label && (
+                        <text
+                          x={pos.x + 12}
+                          y={pos.y}
+                          dy="0.32em"
+                          textAnchor="start"
+                          style={{
+                            fontSize: '9px',
+                            fontWeight: 700,
+                            fontFamily: 'var(--mono)',
+                            fill: 'var(--text-primary)',
+                            opacity: 0.8,
+                            pointerEvents: 'none',
+                          }}
+                        >
+                          {label}
+                        </text>
+                      )}
+                    </g>
                   );
                 })}
 
                 {/* 5. RENDER OUTPUT PINS */}
                 {node.outputs.map((pin) => {
                   const pos = getPinPosition(node, pin.id);
+                  const label = getPinLabel(node, pin, customGates);
                   return (
-                    <circle
-                      key={pin.id}
-                      cx={pos.x}
-                      cy={pos.y}
-                      r="6"
-                      className={`pin-circle ${pin.value ? 'connected-high' : 'connected-low'}`}
-                      onMouseDown={(e) => handlePinMouseDown(e, pin, node)}
-                      onMouseUp={(e) => handlePinMouseUp(e, pin)}
-                    >
-                      <title>{`Output Pin ${pin.index + 1}: ${pin.value ? '1' : '0'}`}</title>
-                    </circle>
+                    <g key={pin.id}>
+                      <circle
+                        cx={pos.x}
+                        cy={pos.y}
+                        r="6"
+                        className={`pin-circle ${pin.value ? 'connected-high' : 'connected-low'}`}
+                        onMouseDown={(e) => handlePinMouseDown(e, pin, node)}
+                        onMouseUp={(e) => handlePinMouseUp(e, pin)}
+                      >
+                        <title>{`Output Pin ${pin.index + 1}: ${pin.value ? '1' : '0'}`}</title>
+                      </circle>
+                      {showPinLabels && label && (
+                        <text
+                          x={pos.x - 12}
+                          y={pos.y}
+                          dy="0.32em"
+                          textAnchor="end"
+                          style={{
+                            fontSize: '9px',
+                            fontWeight: 700,
+                            fontFamily: 'var(--mono)',
+                            fill: 'var(--text-primary)',
+                            opacity: 0.8,
+                            pointerEvents: 'none',
+                          }}
+                        >
+                          {label}
+                        </text>
+                      )}
+                    </g>
                   );
                 })}
               </g>

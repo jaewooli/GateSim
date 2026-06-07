@@ -23,6 +23,8 @@ export const Header: React.FC<HeaderProps> = ({ circuit, onOpenCustomGateModal }
     importCircuitJSON,
     createSubCircuitTab,
     deleteSubCircuitTab,
+    showPinLabels,
+    toggleShowPinLabels,
   } = circuit;
 
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -127,6 +129,16 @@ export const Header: React.FC<HeaderProps> = ({ circuit, onOpenCustomGateModal }
         </button>
         <button onClick={redo} disabled={!canRedo} title="Redo (Ctrl+Y)" style={{ opacity: canRedo ? 1 : 0.5 }}>
           ↪ Redo
+        </button>
+
+        <div className="divider" />
+
+        <button
+          className={showPinLabels ? 'primary' : ''}
+          onClick={toggleShowPinLabels}
+          title="Toggle Input/Output Pin Labels on Custom Gates"
+        >
+          🏷️ {showPinLabels ? 'Pin Labels ON' : 'Pin Labels OFF'}
         </button>
 
         <div className="divider" />

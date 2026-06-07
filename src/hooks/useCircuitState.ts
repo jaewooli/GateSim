@@ -172,6 +172,7 @@ export function useCircuitState() {
   const [transform, setTransform] = useState<CanvasTransform>(INITIAL_TRANSFORM);
   const [selectedNodeId, setSelectedNodeId] = useState<string | null>(null);
   const [copiedNode, setCopiedNode] = useState<Node | null>(null);
+  const [showPinLabels, setShowPinLabels] = useState<boolean>(true);
   
   // Undo/Redo Stacks (Saves full tabs and customGates states)
   const [undoStack, setUndoStack] = useState<{ tabs: Tab[]; customGates: Record<string, SubCircuitDefinition> }[]>([]);
@@ -236,6 +237,11 @@ export function useCircuitState() {
     setCustomGates(next.customGates);
     setSelectedNodeId(null);
   }, [redoStack, tabs, customGates]);
+
+  // Toggle Pin Labels visibility
+  const toggleShowPinLabels = useCallback(() => {
+    setShowPinLabels((prev) => !prev);
+  }, []);
 
 
 
@@ -769,6 +775,8 @@ export function useCircuitState() {
     redo,
     copySelectedNode,
     pasteNode,
+    showPinLabels,
+    toggleShowPinLabels,
     canUndo: undoStack.length > 0,
     canRedo: redoStack.length > 0,
 
