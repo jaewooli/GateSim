@@ -10,6 +10,7 @@ const PRESET_DESCRIPTIONS: Record<string, string> = {
   'sub-nor': 'NOR Gate: A derived universal gate. Built by combining a basic OR gate followed by a NOT inverter. Outputs HIGH only if all inputs are LOW. Double-click to inspect its components.',
   'sub-xor': 'XOR (Exclusive OR) Gate: Built using NOT, AND, and OR gates. Outputs HIGH if and only if the inputs are different. Double-click to inspect how its fundamental gates are stacked.',
   'sub-xnor': 'XNOR (Exclusive NOR) Gate: Built using NOT, AND, and OR gates. Outputs HIGH if inputs are identical. Double-click to inspect its fundamental gate structure.',
+  'sub-d-latch': 'Gated D Latch: A 1-bit memory latch. When CLK (Enable) is HIGH, it captures the input data D and passes it to output Q; when CLK is LOW, it retains its stored value. Double-click to inspect its logic gates and cross-coupled feedback loop.',
 };
 
 interface InspectorProps {
@@ -43,7 +44,7 @@ export const Inspector: React.FC<InspectorProps> = ({ circuit }) => {
   // Helper to format types nicely
   const getReadableType = (n: Node) => {
     if (n.type === 'CUSTOM') {
-      const presets = ['sub-half-adder', 'sub-sr-latch', 'sub-mux', 'sub-nand', 'sub-nor', 'sub-xor', 'sub-xnor'];
+      const presets = ['sub-half-adder', 'sub-sr-latch', 'sub-mux', 'sub-full-adder', 'sub-d-latch', 'sub-nand', 'sub-nor', 'sub-xor', 'sub-xnor'];
       if (n.customGateId && presets.includes(n.customGateId)) {
         return 'Advanced Block';
       }

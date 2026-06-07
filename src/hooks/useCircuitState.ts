@@ -261,6 +261,37 @@ const DEMO_TABS: Tab[] = [
       ],
     },
   },
+  // 10. D Latch Preset
+  {
+    id: 'sub-d-latch',
+    name: 'Gated D Latch',
+    state: {
+      nodes: [
+        createDemoNode('dlatch-in-d', 'PORT_IN', 'IN PORT', 60, 80, 0, 1, undefined, 'D'),
+        createDemoNode('dlatch-in-clk', 'PORT_IN', 'IN PORT', 60, 240, 0, 1, undefined, 'CLK'),
+        createDemoNode('dlatch-not', 'NOT', 'NOT', 180, 80, 1, 1),
+        createDemoNode('dlatch-and-s', 'AND', 'AND', 300, 60, 2, 1),
+        createDemoNode('dlatch-and-r', 'AND', 'AND', 300, 220, 2, 1),
+        createDemoNode('dlatch-nor-q', 'NOR', 'NOR', 460, 60, 2, 1, undefined, 'Q NOR'),
+        createDemoNode('dlatch-nor-qb', 'NOR', 'NOR', 460, 220, 2, 1, undefined, 'Qb NOR'),
+        createDemoNode('dlatch-out-q', 'PORT_OUT', 'OUT PORT', 620, 80, 1, 0, undefined, 'Q'),
+        createDemoNode('dlatch-out-qb', 'PORT_OUT', 'OUT PORT', 620, 240, 1, 0, undefined, 'Q_bar'),
+      ],
+      connections: [
+        { id: 'dlatch-conn-1', fromPinId: 'dlatch-in-d-out-0', toPinId: 'dlatch-and-s-in-0' },
+        { id: 'dlatch-conn-2', fromPinId: 'dlatch-in-d-out-0', toPinId: 'dlatch-not-in-0' },
+        { id: 'dlatch-conn-3', fromPinId: 'dlatch-not-out-0', toPinId: 'dlatch-and-r-in-1' },
+        { id: 'dlatch-conn-4', fromPinId: 'dlatch-in-clk-out-0', toPinId: 'dlatch-and-s-in-1' },
+        { id: 'dlatch-conn-5', fromPinId: 'dlatch-in-clk-out-0', toPinId: 'dlatch-and-r-in-0' },
+        { id: 'dlatch-conn-6', fromPinId: 'dlatch-and-s-out-0', toPinId: 'dlatch-nor-q-in-0' },
+        { id: 'dlatch-conn-7', fromPinId: 'dlatch-and-r-out-0', toPinId: 'dlatch-nor-qb-in-1' },
+        { id: 'dlatch-conn-8', fromPinId: 'dlatch-nor-q-out-0', toPinId: 'dlatch-nor-qb-in-0' },
+        { id: 'dlatch-conn-9', fromPinId: 'dlatch-nor-qb-out-0', toPinId: 'dlatch-nor-q-in-1' },
+        { id: 'dlatch-conn-10', fromPinId: 'dlatch-nor-q-out-0', toPinId: 'dlatch-out-q-in-0' },
+        { id: 'dlatch-conn-11', fromPinId: 'dlatch-nor-qb-out-0', toPinId: 'dlatch-out-qb-in-0' },
+      ],
+    },
+  },
 ];
 
 const DEMO_CUSTOM_GATES: Record<string, SubCircuitDefinition> = {
@@ -319,6 +350,13 @@ const DEMO_CUSTOM_GATES: Record<string, SubCircuitDefinition> = {
     color: '#00FF66',
     nodes: DEMO_TABS[8].state.nodes,
     connections: DEMO_TABS[8].state.connections,
+  },
+  'sub-d-latch': {
+    id: 'sub-d-latch',
+    name: 'D_LATCH',
+    color: '#FF6B6B',
+    nodes: DEMO_TABS[9].state.nodes,
+    connections: DEMO_TABS[9].state.connections,
   },
 };
 

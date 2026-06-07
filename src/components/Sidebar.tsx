@@ -208,7 +208,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ onAddNode, customGates, active
   }
 
   // Define preset IDs that are treated as official advanced blocks
-  const presetBlockIds = ['sub-half-adder', 'sub-sr-latch', 'sub-mux', 'sub-full-adder'];
+  const presetBlockIds = ['sub-half-adder', 'sub-sr-latch', 'sub-mux', 'sub-full-adder', 'sub-d-latch'];
 
   // All system presets to prevent duplicates in user Custom Gates section
   const systemPresetIds = [...presetBlockIds, 'sub-nand', 'sub-nor', 'sub-xor', 'sub-xnor'];
