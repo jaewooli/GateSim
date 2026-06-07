@@ -1207,9 +1207,12 @@ export function useCircuitState() {
       return;
     }
     const circuitId = existingId || `circuit-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+    // Save the currently active tab as the "featured" tab so that when the circuit is
+    // loaded back (or opened via a share link), the same tab is shown.
     const stateData = {
       tabs,
-      customGates
+      customGates,
+      activeTabId, // Remember which tab was active so share/load restores the right view
     };
     try {
       const response = await fetch('/gatesimulator/api/circuits', {
@@ -1235,7 +1238,7 @@ export function useCircuitState() {
       console.error('Failed to save circuit to cloud:', err);
       alert('Failed to save circuit to cloud. Server may be down.');
     }
-  }, [tabs, customGates, fetchCloudCircuits]);
+  }, [tabs, customGates, activeTabId, fetchCloudCircuits]);
 
   const loadCircuitFromCloud = useCallback((circuit: { id: string; name: string; state: any }) => {
     if (!circuit.state || !circuit.state.tabs || !circuit.state.customGates) {
@@ -1245,7 +1248,10 @@ export function useCircuitState() {
     saveHistory();
     setTabs(circuit.state.tabs);
     setCustomGates(circuit.state.customGates);
-    setActiveTabId('main');
+    // Restore the tab that was active when the circuit was saved, if it still exists
+    const savedTabId = circuit.state.activeTabId;
+    const tabExists = savedTabId && circuit.state.tabs.some((t: { id: string }) => t.id === savedTabId);
+    setActiveTabId(tabExists ? savedTabId : 'main');
     setTransform(INITIAL_TRANSFORM);
     setSelectedNodeId(null);
     setStepCount(0);
@@ -1789,7 +1795,10 @@ export function useCircuitState() {
         // Apply circuit state FIRST, then clean the URL
         setTabs(data.state.tabs);
         setCustomGates(data.state.customGates);
-        setActiveTabId('main');
+        // Restore the tab that was active when the circuit was shared, if it still exists
+        const savedTabId = data.state.activeTabId;
+        const tabExists = savedTabId && data.state.tabs.some((t: { id: string }) => t.id === savedTabId);
+        setActiveTabId(tabExists ? savedTabId : 'main');
         setTransform(INITIAL_TRANSFORM);
         setSelectedNodeId(null);
         setStepCount(0);
