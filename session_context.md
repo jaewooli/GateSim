@@ -8,12 +8,12 @@ This document provides a comprehensive summary of the **GateSim** codebase. Read
 **GateSim** is an interactive, web-based logic gate simulator using a premium tactile design aesthetic (inspired by Teenage Engineering and Figma). 
 
 ### Key Features
-1. **Dual Modes**: 
-   - **Sandbox Mode**: Unlimited canvas where users can place gates, clocks, switches, and package their designs into custom composite gates.
-   - **Curriculum Mode**: A step-by-step CPU design roadmap (from NAND/NOR gates up to a working 4-bit CPU) with interactive verification testing.
+1. **Dual Modes & URL Routing (react-router-dom)**: 
+   - **Sandbox Mode (`/sandbox`)**: Unlimited canvas where users can place gates, clocks, switches, and package their designs into custom composite gates.
+   - **Curriculum Mode (`/curriculum/:missionId`)**: A step-by-step CPU design roadmap (from NAND/NOR gates up to a working 4-bit CPU) with interactive verification testing.
 2. **Simulation Engine**: Queue-based reactive propagation engine supporting latch feedback loops, clock cycles (30Hz), oscillation safety limits, and step-by-step debugger stepping.
 3. **Teenage Engineering UI**: Smooth panning & zooming canvas with grid snaps, glowing wire animations (particle flow on HIGH state wires), multiple node marquee selection/group dragging, and a dual theme system (Warm Light / TE Neon Dark mode).
-4. **Real-time Logic Analyzer**: Interactive waveform drawer displaying time-series digital signal histories (60 samples at 100ms interval) for probed nodes.
+4. **Real-time Logic Analyzer**: Interactive waveform drawer displaying time-series digital signal histories (60 samples at 25ms interval) for probed nodes.
 
 ---
 

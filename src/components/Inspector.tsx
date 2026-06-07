@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import type { Node } from '../types';
 import type { CircuitHook } from '../hooks/useCircuitState';
 
@@ -51,6 +51,14 @@ export const Inspector: React.FC<InspectorProps> = ({ circuit }) => {
     }
   };
 
+  const [tempInterval, setTempInterval] = useState<string>('');
+
+  useEffect(() => {
+    if (node && node.type === 'CLOCK') {
+      setTempInterval((node.clockInterval || 1000).toString());
+    }
+  }, [node?.id, node?.clockInterval]);
+
   const handleLabelChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (node) {
       setNodeLabel(node.id, e.target.value);
@@ -58,11 +66,23 @@ export const Inspector: React.FC<InspectorProps> = ({ circuit }) => {
   };
 
   const handleClockIntervalChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    setTempInterval(e.target.value);
+  };
+
+  const handleClockIntervalBlur = () => {
     if (node) {
-      const val = parseInt(e.target.value, 10);
-      if (!isNaN(val) && val >= 50) {
-        setClockInterval(node.id, val);
+      let val = parseInt(tempInterval, 10);
+      if (isNaN(val) || val < 50) {
+        val = 50;
       }
+      setClockInterval(node.id, val);
+      setTempInterval(val.toString());
+    }
+  };
+
+  const handleClockIntervalKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
+    if (e.key === 'Enter') {
+      e.currentTarget.blur();
     }
   };
 
@@ -109,8 +129,10 @@ export const Inspector: React.FC<InspectorProps> = ({ circuit }) => {
               id="clock-interval"
               type="number"
               className="inspector-input"
-              value={node.clockInterval || 1000}
+              value={tempInterval}
               onChange={handleClockIntervalChange}
+              onBlur={handleClockIntervalBlur}
+              onKeyDown={handleClockIntervalKeyDown}
               min="50"
               step="50"
             />

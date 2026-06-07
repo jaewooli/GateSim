@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import type { Node, Connection, SubCircuitDefinition, Tab, CanvasTransform, NodeType, Pin, CircuitState, Mission } from '../types';
 import { runSimulationFull, runSimulationStep } from '../utils/simulation';
+import { useLocation, useNavigate, useMatch } from 'react-router-dom';
 
 const INITIAL_TRANSFORM: CanvasTransform = { x: 0, y: 0, zoom: 1 };
 
@@ -848,8 +849,38 @@ function sanitizeCustomGates(record: Record<string, SubCircuitDefinition>): Reco
 }
 
 export function useCircuitState() {
-  // App Mode State ('sandbox' for regular Sandbox simulation, 'curriculum' for CPU course)
-  const [appMode, setAppMode] = useState<'sandbox' | 'curriculum'>('sandbox');
+  const location = useLocation();
+  const navigate = useNavigate();
+  const curriculumMatch = useMatch('/curriculum/:missionId');
+
+  const appMode = location.pathname.startsWith('/curriculum') ? 'curriculum' : 'sandbox';
+  const activeMissionId = curriculumMatch?.params.missionId || null;
+
+  const setAppMode = useCallback((mode: 'sandbox' | 'curriculum') => {
+    if (mode === 'sandbox') {
+      navigate('/sandbox');
+    } else {
+      const defaultMissionId = activeMissionId || 'mission-nand';
+      navigate(`/curriculum/${defaultMissionId}`);
+    }
+  }, [navigate, activeMissionId]);
+
+  const setActiveMissionId = useCallback((id: string | null) => {
+    if (id) {
+      navigate(`/curriculum/${id}`);
+    } else {
+      navigate('/curriculum');
+    }
+  }, [navigate]);
+
+  // Dynamic route redirection for root paths
+  useEffect(() => {
+    if (location.pathname === '/curriculum' || location.pathname === '/curriculum/') {
+      navigate('/curriculum/mission-nand', { replace: true });
+    } else if (location.pathname === '/' || location.pathname === '') {
+      navigate('/sandbox', { replace: true });
+    }
+  }, [location.pathname, navigate]);
 
   // Tabs & Custom Gates
   const [tabs, setTabs] = useState<Tab[]>(DEMO_TABS);
@@ -877,7 +908,6 @@ export function useCircuitState() {
       return [];
     }
   });
-  const [activeMissionId, setActiveMissionId] = useState<string | null>(null);
 
   // Curriculum Canvas States (Keeps empty/work in progress states separate from solved sandbox tabs)
   const [missionStates, setMissionStates] = useState<Record<string, CircuitState>>(() => {
@@ -980,7 +1010,7 @@ export function useCircuitState() {
 
   // Update waveform history
   useEffect(() => {
-    if (probedNodeIds.length === 0) return;
+    if (probedNodeIds.length === 0 || !isSimulating) return;
     const interval = setInterval(() => {
       setWaveformHistory((prev) => {
         const next = { ...prev };
@@ -999,9 +1029,9 @@ export function useCircuitState() {
         });
         return next;
       });
-    }, 100);
+    }, 25);
     return () => clearInterval(interval);
-  }, [probedNodeIds]);
+  }, [probedNodeIds, isSimulating]);
 
   // Auto-initialize empty mission ports when starting a mission
   useEffect(() => {
@@ -1937,7 +1967,28 @@ export function useCircuitState() {
     // Set next queue for subsequent steps
     setDebugQueue(result.nextQueue);
     setStepCount((s) => s + 1);
-  }, [nodes, connections, debugQueue, activeCustomGates, updateActiveCircuitState]);
+
+    // Record a single waveform sample for this step
+    if (probedNodeIds.length > 0) {
+      setWaveformHistory((prev) => {
+        const next = { ...prev };
+        probedNodeIds.forEach((id) => {
+          const node = result.state.nodes.find((n) => n.id === id);
+          let val = false;
+          if (node) {
+            if (node.outputs[0]) {
+              val = node.outputs[0].value;
+            } else if (node.inputs[0]) {
+              val = node.inputs[0].value;
+            }
+          }
+          const history = next[id] || [];
+          next[id] = [...history, val].slice(-60);
+        });
+        return next;
+      });
+    }
+  }, [nodes, connections, debugQueue, activeCustomGates, updateActiveCircuitState, probedNodeIds]);
 
   return {
     // Canvas & Tab States
