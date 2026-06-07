@@ -140,6 +140,6 @@ Custom variables mapped across light and dark theme classes:
 ## 7. Dynamic Backend Server (`server.cjs`)
 A lightweight Node.js Express server configured to serve both the React app and custom API endpoints:
 
-- **Database**: Uses lightweight file-based JSON storage (`db/users.json`, `db/circuits.json`, `db/progress.json`) in the workspace, ensuring zero complex database setup is required.
-- **Auth Endpoint**: Custom sha256 encryption using the Node.js built-in `crypto` module (zero native package binary dependencies) to verify users and issue authorization sessions.
+- **Database**: Uses lightweight, persistent **SQLite database** (`db/gatesim.db`) in the workspace, storing user accounts, cloud progress, and sandbox circuits.
+- **Auth Endpoint**: Uses stateless **JWT (JSON Web Tokens)** signed with a persistent cryptographic secret key (`db/jwt_secret.key`) to keep users logged in for 7 days across server restarts, verifying passwords with SHA-256 hashing.
 - **Progress Syncing**: Syncs and retrieves curriculum states automatically.

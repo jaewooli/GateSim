@@ -141,6 +141,12 @@ export const Sidebar: React.FC<SidebarProps> = ({ circuit, onAddNode }) => {
     verifyCurrentMission,
     resetMissionTab,
     loadMissionSolution,
+    // Auth & Cloud Storage
+    user,
+    cloudCircuits,
+    saveCircuitToCloud,
+    loadCircuitFromCloud,
+    deleteCircuitFromCloud,
   } = circuit;
 
   const [verificationResult, setVerificationResult] = useState<{ success: boolean; message: string } | null>(null);
@@ -434,6 +440,134 @@ export const Sidebar: React.FC<SidebarProps> = ({ circuit, onAddNode }) => {
 
   return (
     <div className="sidebar-container sandbox-sidebar">
+      {/* Category: Cloud Storage */}
+      <div className="toolbox-group cloud-storage-group">
+        <div className="toolbox-title">☁️ Cloud Storage</div>
+        {!user ? (
+          <div style={{
+            padding: '12px',
+            backgroundColor: 'rgba(255, 255, 255, 0.02)',
+            border: '1px dashed var(--border-color)',
+            borderRadius: '8px',
+            fontSize: '11px',
+            color: 'var(--text-muted)',
+            textAlign: 'center',
+            display: 'flex',
+            flexDirection: 'column',
+            gap: '8px'
+          }}>
+            <span>Sign in to sync your circuits to the cloud database.</span>
+          </div>
+        ) : (
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+            <button
+              onClick={() => {
+                const name = prompt('Enter a name for this circuit:');
+                if (name && name.trim()) {
+                  saveCircuitToCloud(name.trim());
+                }
+              }}
+              className="primary"
+              style={{
+                width: '100%',
+                padding: '8px',
+                fontSize: '11px',
+                fontWeight: 800,
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                gap: '6px'
+              }}
+            >
+              💾 Save Current Circuit
+            </button>
+
+            {cloudCircuits.length === 0 ? (
+              <div style={{
+                fontSize: '11px',
+                color: 'var(--text-muted)',
+                fontStyle: 'italic',
+                textAlign: 'center',
+                padding: '8px 0'
+              }}>
+                No saved circuits found.
+              </div>
+            ) : (
+              <div style={{
+                maxHeight: '200px',
+                overflowY: 'auto',
+                display: 'flex',
+                flexDirection: 'column',
+                gap: '6px',
+                paddingRight: '4px'
+              }}>
+                {cloudCircuits.map((c) => (
+                  <div
+                    key={c.id}
+                    className="cloud-circuit-item"
+                    style={{
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'space-between',
+                      backgroundColor: 'rgba(255, 255, 255, 0.03)',
+                      border: '1px solid var(--border-color)',
+                      borderRadius: '6px',
+                      padding: '6px 10px',
+                      fontSize: '11px',
+                      transition: 'all 0.15s ease'
+                    }}
+                  >
+                    <div
+                      onClick={() => {
+                        if (confirm(`Load "${c.name}"? This will replace your current canvas.`)) {
+                          loadCircuitFromCloud(c);
+                        }
+                      }}
+                      style={{
+                        cursor: 'pointer',
+                        fontWeight: 700,
+                        flexGrow: 1,
+                        overflow: 'hidden',
+                        textOverflow: 'ellipsis',
+                        whiteSpace: 'nowrap',
+                        color: 'var(--text-primary)',
+                        textAlign: 'left'
+                      }}
+                      title={`Click to load: ${c.name}`}
+                    >
+                      {c.name}
+                    </div>
+                    <button
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        if (confirm(`Are you sure you want to delete "${c.name}" from the cloud?`)) {
+                          deleteCircuitFromCloud(c.id);
+                        }
+                      }}
+                      style={{
+                        background: 'none',
+                        border: 'none',
+                        color: 'var(--danger)',
+                        cursor: 'pointer',
+                        padding: '2px 4px',
+                        fontSize: '11px',
+                        opacity: 0.6,
+                        transition: 'opacity 0.15s ease'
+                      }}
+                      onMouseEnter={(e) => e.currentTarget.style.opacity = '1'}
+                      onMouseLeave={(e) => e.currentTarget.style.opacity = '0.6'}
+                      title="Delete from Cloud"
+                    >
+                      🗑️
+                    </button>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        )}
+      </div>
+
       {/* Category: Inputs */}
       <div className="toolbox-group">
         <div className="toolbox-title">Inputs</div>

@@ -907,3 +907,9 @@
   -ms-user-select: none;
 }
 
+/* Cloud circuit items hover effects */
+.cloud-circuit-item:hover {
+  border-color: var(--text-primary) !important;
+  background-color: rgba(255, 255, 255, 0.08) !important;
+}
+

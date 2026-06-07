@@ -925,7 +925,7 @@ export function useCircuitState() {
     }
   };
 
-  const loginUser = useCallback((token: string, username: string) => {
+    const loginUser = useCallback((token: string, username: string) => {
     localStorage.setItem('authToken', token);
     localStorage.setItem('authUsername', username);
     setUser({ token, username });
@@ -937,6 +937,8 @@ export function useCircuitState() {
     localStorage.removeItem('authUsername');
     setUser(null);
   }, []);
+
+
 
   const syncProgressToServer = useCallback(async (token: string, completed: string[], states: Record<string, CircuitState>, gates: Record<string, SubCircuitDefinition>) => {
     try {
@@ -1176,6 +1178,110 @@ export function useCircuitState() {
     ]);
     setRedoStack([]); // Clear redo stack on new action
   }, [tabs, customGates]);
+
+  // Cloud Circuits State & Actions
+  const [cloudCircuits, setCloudCircuits] = useState<{ id: string; name: string; state: any; updatedAt: string }[]>([]);
+
+  const fetchCloudCircuits = useCallback(async () => {
+    const token = localStorage.getItem('authToken');
+    if (!token) return;
+    try {
+      const response = await fetch('/gatesimulator/api/circuits', {
+        headers: {
+          'Authorization': `Bearer ${token}`
+        }
+      });
+      if (response.ok) {
+        const data = await response.json();
+        setCloudCircuits(data);
+      }
+    } catch (err) {
+      console.error('Failed to fetch cloud circuits:', err);
+    }
+  }, []);
+
+  const saveCircuitToCloud = useCallback(async (name: string, existingId?: string) => {
+    const token = localStorage.getItem('authToken');
+    if (!token) {
+      alert('You must be logged in to save circuits to the cloud.');
+      return;
+    }
+    const circuitId = existingId || `circuit-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+    const stateData = {
+      tabs,
+      customGates
+    };
+    try {
+      const response = await fetch('/gatesimulator/api/circuits', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
+        body: JSON.stringify({
+          id: circuitId,
+          name,
+          state: stateData
+        })
+      });
+      if (response.ok) {
+        fetchCloudCircuits();
+        alert('Circuit saved to cloud successfully!');
+      } else {
+        const errData = await response.json();
+        alert(`Failed to save: ${errData.error || 'Unknown error'}`);
+      }
+    } catch (err) {
+      console.error('Failed to save circuit to cloud:', err);
+      alert('Failed to save circuit to cloud. Server may be down.');
+    }
+  }, [tabs, customGates, fetchCloudCircuits]);
+
+  const loadCircuitFromCloud = useCallback((circuit: { id: string; name: string; state: any }) => {
+    if (!circuit.state || !circuit.state.tabs || !circuit.state.customGates) {
+      alert('Invalid circuit data loaded from cloud.');
+      return;
+    }
+    saveHistory();
+    setTabs(circuit.state.tabs);
+    setCustomGates(circuit.state.customGates);
+    setActiveTabId('main');
+    setTransform(INITIAL_TRANSFORM);
+    setSelectedNodeId(null);
+    setStepCount(0);
+    setOscillationError(false);
+  }, [saveHistory]);
+
+  const deleteCircuitFromCloud = useCallback(async (id: string) => {
+    const token = localStorage.getItem('authToken');
+    if (!token) return;
+    try {
+      const response = await fetch(`/gatesimulator/api/circuits/${id}`, {
+        method: 'DELETE',
+        headers: {
+          'Authorization': `Bearer ${token}`
+        }
+      });
+      if (response.ok) {
+        fetchCloudCircuits();
+      } else {
+        const errData = await response.json();
+        alert(`Failed to delete: ${errData.error || 'Unknown error'}`);
+      }
+    } catch (err) {
+      console.error('Failed to delete circuit from cloud:', err);
+      alert('Failed to delete circuit from cloud.');
+    }
+  }, [fetchCloudCircuits]);
+
+  // Automatically fetch cloud circuits on login/auth initialization
+  useEffect(() => {
+    if (user) {
+      fetchCloudCircuits();
+    } else {
+      setCloudCircuits([]);
+    }
+  }, [user, fetchCloudCircuits]);
 
   // Undo Function
   const undo = useCallback(() => {
@@ -2203,6 +2309,13 @@ export function useCircuitState() {
     user,
     loginUser,
     logoutUser,
+
+    // Cloud Storage
+    cloudCircuits,
+    fetchCloudCircuits,
+    saveCircuitToCloud,
+    loadCircuitFromCloud,
+    deleteCircuitFromCloud,
 
     // Theme (Teenage Engineering styling)
     theme,
