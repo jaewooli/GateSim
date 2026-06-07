@@ -4,6 +4,7 @@ import Header from './components/Header';
 import Sidebar from './components/Sidebar';
 import Canvas from './components/Canvas';
 import Inspector from './components/Inspector';
+import CurriculumDock from './components/CurriculumDock';
 import CreateCustomGateModal from './components/CreateCustomGateModal';
 import './App.css';
 
@@ -32,6 +33,7 @@ function App() {
       <div className="editor-body">
         {/* Left Toolbar / Toolbox */}
         <Sidebar
+          circuit={circuit}
           onAddNode={(type, customGateId) => {
             // Spawn node in the center of the canvas view
             // Take zoom and pan into account so it spawns on screen
@@ -47,15 +49,34 @@ function App() {
             
             circuit.addNode(type, rx, ry, customGateId);
           }}
-          customGates={circuit.customGates}
-          activeTabId={circuit.activeTabId}
         />
 
-        {/* Center Canvas */}
-        <Canvas circuit={circuit} />
+        {/* Center Canvas with overlay Dock */}
+        <div style={{ flex: 1, position: 'relative', height: '100%', display: 'flex', flexDirection: 'column' }}>
+          <Canvas circuit={circuit} />
+          {circuit.appMode === 'curriculum' && (
+            <CurriculumDock
+              circuit={circuit}
+              onAddNode={(type, customGateId) => {
+                const width = window.innerWidth;
+                const height = window.innerHeight;
+                const spawnX = (width / 2 - 140 - circuit.transform.x) / circuit.transform.zoom - 55;
+                const spawnY = (height / 2 - 80 - circuit.transform.y) / circuit.transform.zoom - 35;
+                
+                const grid = 20;
+                const rx = Math.round(spawnX / grid) * grid;
+                const ry = Math.round(spawnY / grid) * grid;
+                
+                circuit.addNode(type, rx, ry, customGateId);
+              }}
+            />
+          )}
+        </div>
 
-        {/* Right Inspector Column */}
-        <Inspector circuit={circuit} />
+        {/* Right Inspector Column - Only visible in curriculum mode when a node is selected, or always in sandbox mode */}
+        {(circuit.appMode !== 'curriculum' || circuit.selectedNodeId !== null) && (
+          <Inspector circuit={circuit} />
+        )}
       </div>
 
       {/* 3. BOTTOM STATUS BAR */}

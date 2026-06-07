@@ -37,6 +37,7 @@ export interface Node {
   clockInterval?: number; // Clock frequency interval in ms (for CLOCK)
   clockState?: boolean;   // Internal state for clocks
   label?: string;         // Custom user label
+  subState?: CircuitState; // Internal simulation state for CUSTOM gates
 }
 
 export interface Connection {
@@ -68,4 +69,15 @@ export interface CanvasTransform {
   x: number;
   y: number;
   zoom: number;
+}
+
+export interface Mission {
+  id: string;
+  title: string;
+  description: string;
+  targetTabId: string;
+  inputsRequired: string[];
+  outputsRequired: string[];
+  truthTable: { inputs: boolean[]; outputs: boolean[] }[];
+  hint?: string;
 }

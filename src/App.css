@@ -441,3 +441,442 @@
   background-color: var(--primary-bg);
   transform: none;
 }
+
+/* ==========================================================================
+   CPU CURRICULUM MODE & FLOATING DOCK STYLES
+   ========================================================================== */
+
+/* 1. Sidebar Curriculum Specific Styles */
+.curriculum-sidebar {
+  width: 340px !important; /* Make it wider for roadmap */
+  background-color: var(--secondary-bg);
+  border-right: 2px solid var(--border-color);
+  padding: 20px;
+  gap: 20px;
+  display: flex;
+  flex-direction: column;
+}
+
+.curriculum-header-block {
+  border-bottom: 1px solid var(--border-color);
+  padding-bottom: 16px;
+}
+
+.curriculum-mode-title {
+  font-size: 14px;
+  font-weight: 900;
+  letter-spacing: 0.08em;
+  color: var(--text-primary);
+  margin-bottom: 6px;
+}
+
+.curriculum-mode-desc {
+  font-size: 11px;
+  color: var(--text-muted);
+  line-height: 1.5;
+}
+
+/* Roadmap Mission Steps List */
+.curriculum-roadmap-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  max-height: 250px;
+  overflow-y: auto;
+  padding-right: 4px;
+  border-bottom: 1px solid var(--border-color);
+  padding-bottom: 16px;
+}
+
+/* Custom scrollbar for roadmap list */
+.curriculum-roadmap-list::-webkit-scrollbar {
+  width: 4px;
+}
+.curriculum-roadmap-list::-webkit-scrollbar-track {
+  background: transparent;
+}
+.curriculum-roadmap-list::-webkit-scrollbar-thumb {
+  background: var(--border-color);
+  border-radius: 4px;
+}
+
+.roadmap-step-item {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 10px 14px;
+  border-radius: 12px;
+  border: 1px solid var(--border-color);
+  background-color: var(--primary-bg);
+  cursor: pointer;
+  transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.roadmap-step-item.unlocked:hover {
+  transform: translateX(4px);
+  border-color: var(--text-primary);
+  background-color: rgba(255, 255, 255, 0.04);
+}
+
+.roadmap-step-item.active {
+  border-color: var(--text-primary);
+  background-color: rgba(255, 255, 255, 0.08);
+  box-shadow: var(--shadow-soft);
+}
+
+.roadmap-step-item.locked {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+.roadmap-step-icon-wrapper {
+  flex-shrink: 0;
+}
+
+.step-status-badge {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  font-size: 11px;
+  font-weight: 800;
+}
+
+.step-status-badge.cleared {
+  background-color: rgba(0, 255, 102, 0.15);
+  color: #00FF66;
+  border: 1px solid rgba(0, 255, 102, 0.3);
+}
+
+.step-status-badge.unlocked {
+  background-color: rgba(255, 255, 255, 0.08);
+  color: var(--text-primary);
+  border: 1px solid var(--border-color);
+}
+
+.step-status-badge.locked {
+  background-color: transparent;
+  color: var(--text-muted);
+  border: 1px dashed var(--border-color);
+}
+
+.roadmap-step-info {
+  flex: 1;
+  min-width: 0;
+}
+
+.roadmap-step-title {
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--text-primary);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.roadmap-step-ports {
+  font-size: 10px;
+  color: var(--text-muted);
+  margin-top: 2px;
+}
+
+/* Active Mission Card Detail */
+.active-mission-card {
+  background-color: var(--primary-bg);
+  border: 1px solid var(--border-color);
+  border-radius: 16px;
+  padding: 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+}
+
+.mission-card-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.mission-badge {
+  font-size: 9px;
+  font-weight: 900;
+  color: var(--accent);
+  letter-spacing: 0.08em;
+}
+
+.mission-status-label {
+  font-size: 9px;
+  font-weight: 800;
+  color: var(--text-muted);
+}
+
+.mission-card-title {
+  font-size: 14px;
+  font-weight: 800;
+  margin: 0;
+  color: var(--text-primary);
+}
+
+.mission-card-desc {
+  font-size: 11px;
+  color: var(--text-muted);
+  line-height: 1.5;
+  margin: 0;
+}
+
+.mission-ports-section {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  border-top: 1px solid var(--border-color);
+  padding-top: 10px;
+}
+
+.port-req-group {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.port-req-label {
+  font-size: 9px;
+  font-weight: 800;
+  color: var(--text-muted);
+}
+
+.port-req-badges {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+}
+
+.port-badge {
+  font-size: 10px;
+  font-weight: 700;
+  padding: 2px 6px;
+  border-radius: 6px;
+  border: 1px solid var(--border-color);
+}
+
+.port-badge.in {
+  background-color: rgba(182, 230, 58, 0.08);
+  color: #B6E63A;
+  border-color: rgba(182, 230, 58, 0.2);
+}
+
+.port-badge.out {
+  background-color: rgba(255, 255, 255, 0.04);
+  color: var(--text-primary);
+}
+
+/* Hint Block Styles */
+.mission-hint-block {
+  border-top: 1px solid var(--border-color);
+  padding-top: 10px;
+}
+
+.hint-toggle-btn {
+  width: 100%;
+  padding: 8px;
+  font-size: 10px;
+  font-weight: 800;
+  background-color: rgba(255, 255, 255, 0.04);
+  border: 1px solid var(--border-color);
+  color: var(--text-primary);
+  border-radius: 8px;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.hint-toggle-btn.active {
+  background-color: rgba(255, 184, 0, 0.1);
+  border-color: rgba(255, 184, 0, 0.3);
+  color: #FFB800;
+}
+
+.hint-content-box {
+  margin-top: 8px;
+  padding: 10px;
+  border-radius: 8px;
+  background-color: rgba(255, 184, 0, 0.04);
+  border: 1px dashed rgba(255, 184, 0, 0.2);
+  font-size: 10px;
+  color: var(--text-primary);
+  line-height: 1.4;
+  white-space: pre-line;
+}
+
+/* Verification Result Box */
+.verification-feedback-box {
+  font-size: 10px;
+  padding: 10px;
+  border-radius: 8px;
+  line-height: 1.4;
+  white-space: pre-line;
+  max-height: 120px;
+  overflow-y: auto;
+}
+
+.verification-feedback-box.success {
+  background-color: rgba(0, 255, 102, 0.06);
+  border: 1px solid rgba(0, 255, 102, 0.3);
+  color: #00FF66;
+}
+
+.verification-feedback-box.failure {
+  background-color: rgba(255, 107, 107, 0.06);
+  border: 1px solid rgba(255, 107, 107, 0.3);
+  color: #FF6B6B;
+}
+
+/* Controls bottom row inside card */
+.mission-action-row {
+  display: flex;
+  gap: 8px;
+  margin-top: 10px;
+}
+
+.mission-reset-btn {
+  flex: 1;
+  padding: 10px;
+  font-size: 11px;
+  font-weight: 800;
+  background-color: transparent;
+  border: 1px solid var(--border-color);
+  color: var(--text-primary);
+  border-radius: 10px;
+  cursor: pointer;
+  transition: background-color 0.15s ease;
+}
+
+.mission-reset-btn:hover {
+  background-color: rgba(255, 255, 255, 0.04);
+}
+
+.mission-verify-btn {
+  flex: 1.5;
+  padding: 10px;
+  font-size: 11px;
+  font-weight: 800;
+  border-radius: 10px;
+  cursor: pointer;
+}
+
+.no-mission-placeholder {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 200px;
+  border: 1px dashed var(--border-color);
+  border-radius: 12px;
+  color: var(--text-muted);
+  font-size: 12px;
+}
+
+/* 2. Floating Inventory Dock Styles */
+.curriculum-dock-container {
+  position: absolute;
+  bottom: 24px;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 10;
+  background: rgba(26, 26, 26, 0.85);
+  backdrop-filter: blur(12px);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 16px;
+  padding: 10px 18px;
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.4);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  pointer-events: auto; /* enable clicks inside absolute parent */
+}
+
+.dock-title-label {
+  font-size: 8px;
+  font-weight: 900;
+  letter-spacing: 0.15em;
+  color: rgba(255, 255, 255, 0.4);
+  text-transform: uppercase;
+}
+
+.dock-items-wrapper {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.dock-item {
+  width: 54px;
+  height: 54px;
+  border-radius: 12px;
+  background-color: rgba(255, 255, 255, 0.04);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  cursor: grab;
+  user-select: none;
+  transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.dock-item:hover {
+  transform: translateY(-6px);
+  background-color: rgba(255, 255, 255, 0.08);
+  border-color: rgba(255, 255, 255, 0.3);
+  box-shadow: 0 5px 15px rgba(0, 0, 0, 0.3);
+}
+
+.dock-item:active {
+  cursor: grabbing;
+}
+
+.dock-item-visual {
+  height: 22px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.dock-item-icon {
+  width: 36px;
+  height: 20px;
+}
+
+.dock-item-name {
+  font-size: 9px;
+  font-weight: 800;
+  color: rgba(255, 255, 255, 0.7);
+  text-transform: uppercase;
+  letter-spacing: 0.02em;
+}
+
+.dock-divider {
+  width: 1px;
+  height: 36px;
+  background-color: rgba(255, 255, 255, 0.15);
+  margin: 0 4px;
+}
+
+.custom-gate-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+}
+
+/* Prevent text selection drag inside canvas to fix wire drawing glitches */
+.canvas-container, .canvas-svg, .canvas-svg text, .canvas-svg tspan {
+  user-select: none;
+  -webkit-user-select: none;
+  -moz-user-select: none;
+  -ms-user-select: none;
+}
+

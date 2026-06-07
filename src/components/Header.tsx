@@ -25,6 +25,12 @@ export const Header: React.FC<HeaderProps> = ({ circuit, onOpenCustomGateModal }
     deleteSubCircuitTab,
     showPinLabels,
     toggleShowPinLabels,
+    // Curriculum integrations
+    appMode,
+    setAppMode,
+    MISSIONS,
+    activeMissionId,
+    setActiveMissionId,
   } = circuit;
 
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -48,7 +54,6 @@ export const Header: React.FC<HeaderProps> = ({ circuit, onOpenCustomGateModal }
     reader.onload = (event) => {
       const content = event.target?.result as string;
       importCircuitJSON(content);
-      // Reset input value to allow importing the same file again
       if (fileInputRef.current) fileInputRef.current.value = '';
     };
     reader.readAsText(file);
@@ -72,35 +77,91 @@ export const Header: React.FC<HeaderProps> = ({ circuit, onOpenCustomGateModal }
         <span className="logo-badge">TACTILE</span>
         
         <div className="divider" />
-        
-        {/* Tabs Manager */}
-        <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
-          {tabs.map((tab) => (
-            <div
-              key={tab.id}
-              className={`tab-button ${activeTabId === tab.id ? 'active' : ''}`}
-              onClick={() => setActiveTabId(tab.id)}
-            >
-              <span>{tab.name}</span>
-              {tab.id !== 'main' && (
-                <button
-                  className="tab-close"
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    if (confirm(`Delete sub-circuit "${tab.name}"? All placements will be lost.`)) {
-                      deleteSubCircuitTab(tab.id);
-                    }
-                  }}
-                >
-                  ✕
-                </button>
-              )}
-            </div>
-          ))}
-          <button className="add-tab-btn" onClick={handleAddTab}>
-            + Sub-circuit
+
+        {/* Mode switcher (Sandbox vs Curriculum) */}
+        <div style={{ display: 'flex', backgroundColor: 'rgba(255, 255, 255, 0.05)', padding: '3px', borderRadius: '8px', border: '1px solid var(--border-color)', gap: '2px', marginRight: '8px' }}>
+          <button
+            onClick={() => setAppMode('sandbox')}
+            style={{
+              padding: '5px 12px',
+              fontSize: '11px',
+              fontWeight: 800,
+              borderRadius: '6px',
+              border: 'none',
+              backgroundColor: appMode === 'sandbox' ? 'var(--text-primary)' : 'transparent',
+              color: appMode === 'sandbox' ? 'var(--secondary-bg)' : 'var(--text-muted)',
+              cursor: 'pointer',
+              transition: 'all 0.12s ease',
+            }}
+          >
+            🎮 Sandbox
+          </button>
+          <button
+            onClick={() => {
+              setAppMode('curriculum');
+              if (!activeMissionId && MISSIONS.length > 0) {
+                setActiveMissionId(MISSIONS[0].id);
+              }
+            }}
+            style={{
+              padding: '5px 12px',
+              fontSize: '11px',
+              fontWeight: 800,
+              borderRadius: '6px',
+              border: 'none',
+              backgroundColor: appMode === 'curriculum' ? 'var(--text-primary)' : 'transparent',
+              color: appMode === 'curriculum' ? 'var(--secondary-bg)' : 'var(--text-muted)',
+              cursor: 'pointer',
+              transition: 'all 0.12s ease',
+            }}
+          >
+            🎓 Curriculum
           </button>
         </div>
+
+        <div className="divider" />
+        
+        {/* Dynamic header content based on mode */}
+        {appMode === 'sandbox' ? (
+          /* Tabs Manager for Sandbox Mode */
+          <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
+            {tabs.map((tab) => (
+              <div
+                key={tab.id}
+                className={`tab-button ${activeTabId === tab.id ? 'active' : ''}`}
+                onClick={() => setActiveTabId(tab.id)}
+              >
+                <span>{tab.name}</span>
+                {tab.id !== 'main' && (
+                  <button
+                    className="tab-close"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      if (confirm(`Delete sub-circuit "${tab.name}"? All placements will be lost.`)) {
+                        deleteSubCircuitTab(tab.id);
+                      }
+                    }}
+                  >
+                    ✕
+                  </button>
+                )}
+              </div>
+            ))}
+            <button className="add-tab-btn" onClick={handleAddTab}>
+              + Sub-circuit
+            </button>
+          </div>
+        ) : (
+          /* Active Mission banner for Curriculum Mode */
+          <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+            <span style={{ backgroundColor: 'var(--accent)', color: 'var(--text-primary)', fontSize: '9px', fontWeight: 800, padding: '2px 6px', borderRadius: '4px', letterSpacing: '0.05em' }}>
+              STEP {activeMissionId ? MISSIONS.findIndex(m => m.id === activeMissionId) + 1 : 1}
+            </span>
+            <span style={{ fontSize: '13px', fontWeight: 700, color: 'var(--text-primary)' }}>
+              {activeMissionId ? MISSIONS.find(m => m.id === activeMissionId)?.title : '로딩 중...'}
+            </span>
+          </div>
+        )}
       </div>
 
       <div className="action-bar">
@@ -141,38 +202,44 @@ export const Header: React.FC<HeaderProps> = ({ circuit, onOpenCustomGateModal }
           🏷️ {showPinLabels ? 'Pin Labels ON' : 'Pin Labels OFF'}
         </button>
 
-        <div className="divider" />
+        {/* Sandbox exclusive actions */}
+        {appMode === 'sandbox' && (
+          <>
+            <div className="divider" />
 
-        {/* Custom Gate Packager (Only visible in sub-circuit tabs) */}
-        {activeTabId !== 'main' && (
-          <button
-            className="primary"
-            onClick={onOpenCustomGateModal}
-            title="Package this design into a Custom Gate for the toolbox"
-          >
-            📦 Package Gate
-          </button>
+            {/* Custom Gate Packager */}
+            {activeTabId !== 'main' && (
+              <button
+                className="primary"
+                onClick={onOpenCustomGateModal}
+                title="Package this design into a Custom Gate for the toolbox"
+              >
+                📦 Package Gate
+              </button>
+            )}
+
+            {/* Save / Load / Clear */}
+            <button onClick={handleExport} title="Export circuit as JSON file">
+              Export
+            </button>
+            <button onClick={handleImportClick} title="Import circuit from JSON file">
+              Import
+              <input
+                type="file"
+                ref={fileInputRef}
+                onChange={handleFileChange}
+                accept=".json"
+                style={{ display: 'none' }}
+              />
+            </button>
+            <button className="danger outline" onClick={clearCanvas} title="Clear all gates and wires">
+              Clear Canvas
+            </button>
+          </>
         )}
-
-        {/* Save / Load / Clear */}
-        <button onClick={handleExport} title="Export circuit as JSON file">
-          Export
-        </button>
-        <button onClick={handleImportClick} title="Import circuit from JSON file">
-          Import
-          <input
-            type="file"
-            ref={fileInputRef}
-            onChange={handleFileChange}
-            accept=".json"
-            style={{ display: 'none' }}
-          />
-        </button>
-        <button className="danger outline" onClick={clearCanvas} title="Clear all gates and wires">
-          Clear Canvas
-        </button>
       </div>
     </div>
   );
 };
+
 export default Header;

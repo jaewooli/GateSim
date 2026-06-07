@@ -1,5 +1,72 @@
 import type { Node, SubCircuitDefinition, CircuitState } from '../types';
 
+// Sub-circuit ID to required ports mapping to keep pin indexing stable
+const CUSTOM_GATE_PORT_SPECS: Record<string, { inputs: string[]; outputs: string[] }> = {
+  'sub-nand': { inputs: ['A', 'B'], outputs: ['Out'] },
+  'sub-nor': { inputs: ['A', 'B'], outputs: ['Out'] },
+  'sub-xor': { inputs: ['A', 'B'], outputs: ['Out'] },
+  'sub-xnor': { inputs: ['A', 'B'], outputs: ['Out'] },
+  'sub-mux': { inputs: ['D0', 'D1', 'Select'], outputs: ['Out'] },
+  'sub-half-adder': { inputs: ['A', 'B'], outputs: ['Sum', 'Carry'] },
+  'sub-full-adder': { inputs: ['A', 'B', 'Cin'], outputs: ['Sum', 'Cout'] },
+  'sub-sr-latch': { inputs: ['Reset (R)', 'Set (S)'], outputs: ['Q', 'Q_bar'] },
+  'sub-d-latch': { inputs: ['D', 'CLK'], outputs: ['Q', 'Q_bar'] },
+  'sub-decoder': { inputs: ['OP0', 'OP1'], outputs: ['LOAD', 'ADD', 'JUMP'] },
+  'sub-alu-1bit': { inputs: ['A', 'B', 'Op0', 'Op1'], outputs: ['Result'] },
+  'sub-register-4bit': { inputs: ['D0', 'D1', 'D2', 'D3', 'CLK'], outputs: ['Q0', 'Q1', 'Q2', 'Q3'] },
+  'sub-pc-4bit': { inputs: ['Reset', 'CLK'], outputs: ['PC0', 'PC1', 'PC2', 'PC3'] },
+  'sub-cpu-4bit': { inputs: ['Reset', 'CLK'], outputs: ['Out0', 'Out1', 'Out2', 'Out3'] },
+};
+
+// Robust port sorting based on mission requirements first, fallback to y-coordinate
+export function sortSubCircuitPorts(
+  nodes: Node[],
+  portType: 'PORT_IN' | 'PORT_OUT',
+  subCircuitId?: string
+): Node[] {
+  const ports = nodes.filter((n) => n.type === portType);
+  
+  if (!subCircuitId || !CUSTOM_GATE_PORT_SPECS[subCircuitId]) {
+    return [...ports].sort((a, b) => a.y - b.y || a.x - b.x);
+  }
+
+  const spec = CUSTOM_GATE_PORT_SPECS[subCircuitId];
+  const requiredNames = portType === 'PORT_IN' ? spec.inputs : spec.outputs;
+  
+  const normalizeName = (s: string) => {
+    if (!s) return '';
+    return s.replace(/\s+/g, '')
+            .toLowerCase()
+            .replace(/\([^)]*\)/g, '')
+            .replace(/[_-]/g, '');
+  };
+
+  const matchedPorts: Node[] = [];
+  const unmatchedPorts: Node[] = [];
+
+  requiredNames.forEach((reqName) => {
+    const targetNorm = normalizeName(reqName);
+    const found = ports.find((p) => {
+      const pNormLabel = normalizeName(p.label || '');
+      const pNormName = normalizeName(p.name || '');
+      return pNormLabel === targetNorm || pNormName === targetNorm;
+    });
+    if (found && !matchedPorts.includes(found)) {
+      matchedPorts.push(found);
+    }
+  });
+
+  ports.forEach((p) => {
+    if (!matchedPorts.includes(p)) {
+      unmatchedPorts.push(p);
+    }
+  });
+
+  unmatchedPorts.sort((a, b) => a.y - b.y || a.x - b.x);
+
+  return [...matchedPorts, ...unmatchedPorts];
+}
+
 // Helper to get pin value by ID
 export function findPinValue(state: CircuitState, pinId: string): boolean {
   for (const node of state.nodes) {
@@ -65,53 +132,60 @@ export function evaluateNode(
 
     case 'CUSTOM': {
       if (!node.customGateId || !customDefs[node.customGateId]) {
-        // Return false for all outputs if definition is missing
         return node.outputs.map(() => false);
       }
 
       const def = customDefs[node.customGateId];
 
-      // Detect circular custom gate definitions to prevent infinite loops
       if (evaluatingCustomIds.has(node.customGateId)) {
         return node.outputs.map(() => false);
       }
 
-      // Clone the sub-circuit nodes & connections to simulate internally
-      const subState: CircuitState = {
-        nodes: JSON.parse(JSON.stringify(def.nodes)),
-        connections: JSON.parse(JSON.stringify(def.connections)),
-      };
+      const isFirstEval = !node.subState;
+      if (!node.subState || node.subState.nodes.length !== def.nodes.length) {
+        node.subState = {
+          nodes: JSON.parse(JSON.stringify(def.nodes)),
+          connections: JSON.parse(JSON.stringify(def.connections)),
+        };
+      }
 
-      // Map parent custom node inputs -> sub-circuit PORT_IN node outputs
-      const subPortIns = subState.nodes
-        .filter((n) => n.type === 'PORT_IN')
-        .sort((a, b) => a.y - b.y || a.x - b.x); // Sort by position to determine index mapping
+      const subState = node.subState;
 
-      inputs.forEach((val, idx) => {
-        if (subPortIns[idx] && subPortIns[idx].outputs[0]) {
-          subPortIns[idx].outputs[0].value = val;
-        }
-      });
+      const subPortIns = sortSubCircuitPorts(subState.nodes, 'PORT_IN', node.customGateId);
 
-      // Run simulation on the sub-circuit state
+      const initialQueue: { pinId: string; value: boolean }[] = [];
+
+      if (isFirstEval) {
+        inputs.forEach((val, idx) => {
+          if (subPortIns[idx] && subPortIns[idx].outputs[0]) {
+            subPortIns[idx].outputs[0].value = val;
+          }
+        });
+        subState.nodes.forEach((n) => {
+          n.outputs.forEach((pin) => {
+            initialQueue.push({ pinId: pin.id, value: pin.value });
+          });
+        });
+      } else {
+        inputs.forEach((val, idx) => {
+          if (subPortIns[idx] && subPortIns[idx].outputs[0]) {
+            const pin = subPortIns[idx].outputs[0];
+            if (pin.value !== val) {
+              pin.value = val;
+              initialQueue.push({ pinId: pin.id, value: val });
+            }
+          }
+        });
+      }
+
       const nextRecSet = new Set(evaluatingCustomIds);
       nextRecSet.add(node.customGateId);
-      
-      // Initialize propagation queue with the values of the PORT_IN pins
-      const initialQueue: { pinId: string; value: boolean }[] = [];
-      subPortIns.forEach((portNode) => {
-        if (portNode.outputs[0]) {
-          initialQueue.push({ pinId: portNode.outputs[0].id, value: portNode.outputs[0].value });
-        }
-      });
 
-      // Run internal simulation until stable
       const result = runSimulationFull(subState, initialQueue, customDefs, 500, nextRecSet);
 
-      // Map sub-circuit PORT_OUT node inputs -> parent custom node outputs
-      const subPortOuts = result.state.nodes
-        .filter((n) => n.type === 'PORT_OUT')
-        .sort((a, b) => a.y - b.y || a.x - b.x);
+      node.subState = result.state;
+
+      const subPortOuts = sortSubCircuitPorts(result.state.nodes, 'PORT_OUT', node.customGateId);
 
       return node.outputs.map((_, idx) => {
         const portOutNode = subPortOuts[idx];

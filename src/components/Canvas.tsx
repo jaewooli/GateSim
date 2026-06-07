@@ -1,6 +1,7 @@
 import React, { useState, useRef } from 'react';
 import type { Node, Pin, NodeType, SubCircuitDefinition } from '../types';
 import type { CircuitHook } from '../hooks/useCircuitState';
+import { sortSubCircuitPorts } from '../utils/simulation';
 
 export const GATE_WIDTH = 110;
 export const GATE_HEIGHT = 70;
@@ -50,15 +51,11 @@ export function getPinLabel(
   if (!def) return null;
 
   if (pin.type === 'input') {
-    const portInNodes = [...def.nodes]
-      .filter((n) => n.type === 'PORT_IN')
-      .sort((a, b) => a.y - b.y);
+    const portInNodes = sortSubCircuitPorts(def.nodes, 'PORT_IN', node.customGateId);
     const matchingPort = portInNodes[pin.index];
     return matchingPort ? (matchingPort.label || matchingPort.name) : null;
   } else {
-    const portOutNodes = [...def.nodes]
-      .filter((n) => n.type === 'PORT_OUT')
-      .sort((a, b) => a.y - b.y);
+    const portOutNodes = sortSubCircuitPorts(def.nodes, 'PORT_OUT', node.customGateId);
     const matchingPort = portOutNodes[pin.index];
     return matchingPort ? (matchingPort.label || matchingPort.name) : null;
   }
