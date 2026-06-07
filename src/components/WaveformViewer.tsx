@@ -15,7 +15,9 @@ export const WaveformViewer: React.FC<WaveformViewerProps> = ({ circuit }) => {
   } = circuit;
 
   const [isExpanded, setIsExpanded] = useState<boolean>(false);
-  const [visibleSamples, setVisibleSamples] = useState<number>(100);
+  // zoomLevel: 1 (최소, 많은 샘플 = 줌아웃) ~ 15 (최대, 적은 샘플 = 줌인)
+  const [zoomLevel, setZoomLevel] = useState<number>(3);
+  const visibleSamples = Math.round(300 - (zoomLevel - 1) * (280 / 14)); // 300 at zoom 1, ~20 at zoom 15
   const [scrollOffset, setScrollOffset] = useState<number>(0);
   const [isLive, setIsLive] = useState<boolean>(true);
 
@@ -237,18 +239,18 @@ export const WaveformViewer: React.FC<WaveformViewerProps> = ({ circuit }) => {
                 color: 'var(--text-muted)'
               }}
             >
-              {/* Zoom slider */}
+              {/* Zoom slider: 오른쪽 = 확대 (적은 샘플) */}
               <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
                 <span>🔍 Zoom:</span>
                 <input
                   type="range"
-                  min="20"
-                  max="300"
-                  value={visibleSamples}
-                  onChange={(e) => setVisibleSamples(parseInt(e.target.value, 10))}
+                  min="1"
+                  max="15"
+                  value={zoomLevel}
+                  onChange={(e) => setZoomLevel(parseInt(e.target.value, 10))}
                   style={{ width: '80px', height: '4px', cursor: 'pointer' }}
                 />
-                <span style={{ fontFamily: 'var(--mono)', width: '24px' }}>{visibleSamples}</span>
+                <span style={{ fontFamily: 'var(--mono)', width: '28px' }}>{zoomLevel}x</span>
               </div>
 
               {/* Scroll slider */}

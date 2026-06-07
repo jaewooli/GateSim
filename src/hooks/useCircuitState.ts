@@ -1762,10 +1762,14 @@ export function useCircuitState() {
   }, [saveHistory]);
 
   // Load shared circuit from URL query param (?share=circuitId)
+  // Use a ref to ensure we only load once per share ID, preventing re-runs caused by
+  // saveHistory/navigate reference changes in the dependency array.
+  const hasLoadedShareRef = useRef<string | null>(null);
   useEffect(() => {
     const params = new URLSearchParams(location.search);
     const shareId = params.get('share');
-    if (shareId && appMode === 'sandbox') {
+    if (shareId && appMode === 'sandbox' && hasLoadedShareRef.current !== shareId) {
+      hasLoadedShareRef.current = shareId; // Mark as loading immediately to prevent concurrent calls
       const loadShared = async () => {
         try {
           const response = await fetch(`/gatesimulator/api/circuits/share/${shareId}`);
@@ -1781,21 +1785,21 @@ export function useCircuitState() {
               setStepCount(0);
               setOscillationError(false);
               navigate('/sandbox', { replace: true });
-              alert(`Successfully loaded shared circuit: "${data.name}"`);
+              // Silently loaded — no alert to avoid interrupting the user
+              console.log(`[GateSim] Shared circuit loaded: "${data.name}"`);
             } else {
-              alert('Invalid shared circuit format.');
+              console.error('[GateSim] Invalid shared circuit format.');
             }
           } else {
-            alert('Failed to load shared circuit. It may have been deleted or the link is invalid.');
+            console.error('[GateSim] Failed to load shared circuit. It may have been deleted or the link is invalid.');
           }
         } catch (err) {
-          console.error('Failed to fetch shared circuit:', err);
-          alert('Network error loading shared circuit.');
+          console.error('[GateSim] Network error loading shared circuit:', err);
         }
       };
       loadShared();
     }
-  }, [location.search, appMode, navigate, saveHistory]);
+  }, [location.search, appMode]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // SIMULATION EXECUTION LOOP (REAL-TIME STATE PROPAGATION)
   useEffect(() => {

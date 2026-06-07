@@ -43,6 +43,8 @@ export const Header: React.FC<HeaderProps> = ({ circuit, onOpenCustomGateModal }
 
   const [isAuthModalOpen, setIsAuthModalOpen] = useState(false);
   const [isShortcutsOpen, setIsShortcutsOpen] = useState(false);
+  const [isMoreOpen, setIsMoreOpen] = useState(false);
+  const [isFileOpen, setIsFileOpen] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const handleAddTab = () => {
@@ -174,29 +176,56 @@ export const Header: React.FC<HeaderProps> = ({ circuit, onOpenCustomGateModal }
             ↪ Redo
           </button>
 
-          <div className="divider" />
-
-          <button
-            className={showPinLabels ? 'primary' : ''}
-            onClick={toggleShowPinLabels}
-            title="Toggle Input/Output Pin Labels on Custom Gates"
-          >
-            🏷️ {showPinLabels ? 'Pin Labels ON' : 'Pin Labels OFF'}
-          </button>
-
-          <button
-            onClick={toggleTheme}
-            title="Toggle between Light and Dark Teenage Engineering theme"
-          >
-            {theme === 'light' ? '🌙 Dark Mode' : '☀️ Light Mode'}
-          </button>
-
-          <button
-            onClick={() => setIsShortcutsOpen(true)}
-            title="Show keyboard shortcuts cheat sheet"
-          >
-            ⌨️ Shortcuts
-          </button>
+          <div style={{ position: 'relative' }}>
+            <button
+              onClick={() => { setIsMoreOpen(!isMoreOpen); setIsFileOpen(false); }}
+              title="More options"
+              style={{ display: 'flex', alignItems: 'center', gap: '4px' }}
+            >
+              ⋯ More
+            </button>
+            {isMoreOpen && (
+              <div
+                onMouseLeave={() => setIsMoreOpen(false)}
+                style={{
+                  position: 'absolute',
+                  top: 'calc(100% + 6px)',
+                  right: 0,
+                  backgroundColor: 'var(--secondary-bg)',
+                  border: '1px solid var(--border-color)',
+                  borderRadius: '10px',
+                  boxShadow: '0 8px 24px rgba(0,0,0,0.4)',
+                  padding: '6px',
+                  display: 'flex',
+                  flexDirection: 'column',
+                  gap: '4px',
+                  zIndex: 1000,
+                  minWidth: '180px',
+                }}
+              >
+                <button
+                  className={showPinLabels ? 'primary' : ''}
+                  onClick={() => { toggleShowPinLabels(); setIsMoreOpen(false); }}
+                  style={{ width: '100%', textAlign: 'left', padding: '8px 12px', borderRadius: '6px', fontSize: '12px' }}
+                >
+                  🏷️ {showPinLabels ? 'Pin Labels: ON' : 'Pin Labels: OFF'}
+                </button>
+                <button
+                  onClick={() => { toggleTheme(); setIsMoreOpen(false); }}
+                  style={{ width: '100%', textAlign: 'left', padding: '8px 12px', borderRadius: '6px', fontSize: '12px' }}
+                >
+                  {theme === 'light' ? '🌙 Dark Mode' : '☀️ Light Mode'}
+                </button>
+                <div style={{ height: '1px', backgroundColor: 'var(--border-color)', margin: '2px 4px' }} />
+                <button
+                  onClick={() => { setIsShortcutsOpen(true); setIsMoreOpen(false); }}
+                  style={{ width: '100%', textAlign: 'left', padding: '8px 12px', borderRadius: '6px', fontSize: '12px' }}
+                >
+                  ⌨️ Keyboard Shortcuts
+                </button>
+              </div>
+            )}
+          </div>
 
           <div className="divider" />
 
@@ -227,7 +256,7 @@ export const Header: React.FC<HeaderProps> = ({ circuit, onOpenCustomGateModal }
               <div className="divider" />
 
               {/* Custom Gate Packager */}
-              {activeTabId !== 'main' && (
+              {activeTabId !== 'main' && !activeTabId.startsWith('sub-') && (
                 <button
                   className="primary"
                   onClick={onOpenCustomGateModal}
@@ -237,23 +266,64 @@ export const Header: React.FC<HeaderProps> = ({ circuit, onOpenCustomGateModal }
                 </button>
               )}
 
-              {/* Save / Load / Clear */}
-              <button onClick={handleExport} title="Export circuit as JSON file">
-                Export
-              </button>
-              <button onClick={handleImportClick} title="Import circuit from JSON file">
-                Import
-                <input
-                  type="file"
-                  ref={fileInputRef}
-                  onChange={handleFileChange}
-                  accept=".json"
-                  style={{ display: 'none' }}
-                />
-              </button>
-              <button className="danger outline" onClick={clearCanvas} title="Clear all gates and wires">
-                Clear Canvas
-              </button>
+              {/* File menu */}
+              <div style={{ position: 'relative' }}>
+                <button
+                  onClick={() => { setIsFileOpen(!isFileOpen); setIsMoreOpen(false); }}
+                  title="Import / Export / Clear"
+                  style={{ display: 'flex', alignItems: 'center', gap: '4px' }}
+                >
+                  📁 File
+                </button>
+                {isFileOpen && (
+                  <div
+                    onMouseLeave={() => setIsFileOpen(false)}
+                    style={{
+                      position: 'absolute',
+                      top: 'calc(100% + 6px)',
+                      right: 0,
+                      backgroundColor: 'var(--secondary-bg)',
+                      border: '1px solid var(--border-color)',
+                      borderRadius: '10px',
+                      boxShadow: '0 8px 24px rgba(0,0,0,0.4)',
+                      padding: '6px',
+                      display: 'flex',
+                      flexDirection: 'column',
+                      gap: '4px',
+                      zIndex: 1000,
+                      minWidth: '160px',
+                    }}
+                  >
+                    <button
+                      onClick={() => { handleExport(); setIsFileOpen(false); }}
+                      style={{ width: '100%', textAlign: 'left', padding: '8px 12px', borderRadius: '6px', fontSize: '12px' }}
+                    >
+                      ⬇️ Export JSON
+                    </button>
+                    <button
+                      onClick={() => { handleImportClick(); setIsFileOpen(false); }}
+                      style={{ width: '100%', textAlign: 'left', padding: '8px 12px', borderRadius: '6px', fontSize: '12px' }}
+                    >
+                      ⬆️ Import JSON
+                      <input
+                        type="file"
+                        ref={fileInputRef}
+                        onChange={handleFileChange}
+                        accept=".json"
+                        style={{ display: 'none' }}
+                      />
+                    </button>
+                    <div style={{ height: '1px', backgroundColor: 'var(--border-color)', margin: '2px 4px' }} />
+                    <button
+                      className="danger outline"
+                      onClick={() => { clearCanvas(); setIsFileOpen(false); }}
+                      style={{ width: '100%', textAlign: 'left', padding: '8px 12px', borderRadius: '6px', fontSize: '12px', border: 'none' }}
+                    >
+                      🗑️ Clear Canvas
+                    </button>
+                  </div>
+                )}
+              </div>
             </>
           )}
         </div>
