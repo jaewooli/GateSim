@@ -171,6 +171,7 @@ export function useCircuitState() {
   // Canvas Interactions
   const [transform, setTransform] = useState<CanvasTransform>(INITIAL_TRANSFORM);
   const [selectedNodeId, setSelectedNodeId] = useState<string | null>(null);
+  const [copiedNode, setCopiedNode] = useState<Node | null>(null);
   
   // Undo/Redo Stacks (Saves full tabs and customGates states)
   const [undoStack, setUndoStack] = useState<{ tabs: Tab[]; customGates: Record<string, SubCircuitDefinition> }[]>([]);
@@ -236,21 +237,7 @@ export function useCircuitState() {
     setSelectedNodeId(null);
   }, [redoStack, tabs, customGates]);
 
-  // Keyboard shortcut listener for Undo/Redo
-  useEffect(() => {
-    const handleKeyDown = (e: KeyboardEvent) => {
-      const isCtrl = e.ctrlKey || e.metaKey;
-      if (isCtrl && e.key.toLowerCase() === 'z') {
-        e.preventDefault();
-        undo();
-      } else if (isCtrl && e.key.toLowerCase() === 'y') {
-        e.preventDefault();
-        redo();
-      }
-    };
-    window.addEventListener('keydown', handleKeyDown);
-    return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [undo, redo]);
+
 
   // Modify active tab circuit state helper
   const updateActiveCircuitState = useCallback((updater: (state: CircuitState) => CircuitState) => {
@@ -378,6 +365,92 @@ export function useCircuitState() {
     }
   }, [saveHistory, selectedNodeId, updateActiveCircuitState]);
 
+  // Copy Selected Node
+  const copySelectedNode = useCallback(() => {
+    if (!selectedNodeId) return;
+    const nodeToCopy = activeTab.state.nodes.find((n) => n.id === selectedNodeId);
+    if (nodeToCopy) {
+      setCopiedNode(nodeToCopy);
+    }
+  }, [selectedNodeId, activeTab]);
+
+  // Paste Node
+  const pasteNode = useCallback(() => {
+    if (!copiedNode) return;
+    saveHistory();
+
+    const newNodeId = `${copiedNode.type.toLowerCase()}-${Date.now()}-${Math.random().toString(36).substr(2, 4)}`;
+
+    const inputs: Pin[] = copiedNode.inputs.map((_, i) => ({
+      id: `${newNodeId}-in-${i}`,
+      nodeId: newNodeId,
+      type: 'input',
+      index: i,
+      value: false,
+    }));
+
+    const outputs: Pin[] = copiedNode.outputs.map((_, i) => ({
+      id: `${newNodeId}-out-${i}`,
+      nodeId: newNodeId,
+      type: 'output',
+      index: i,
+      value: false,
+    }));
+
+    const newNode: Node = {
+      ...copiedNode,
+      id: newNodeId,
+      x: copiedNode.x + 40,
+      y: copiedNode.y + 40,
+      inputs,
+      outputs,
+    };
+
+    updateActiveCircuitState((prev) => ({
+      nodes: [...prev.nodes, newNode],
+      connections: prev.connections,
+    }));
+
+    setSelectedNodeId(newNodeId);
+  }, [copiedNode, saveHistory, updateActiveCircuitState]);
+
+  // Keyboard shortcut listener (Undo, Redo, Copy, Paste, Delete)
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      const target = e.target as HTMLElement;
+      if (
+        target.tagName === 'INPUT' ||
+        target.tagName === 'TEXTAREA' ||
+        target.isContentEditable
+      ) {
+        return; // Skip when user is typing in inspector or fields
+      }
+
+      const isCtrl = e.ctrlKey || e.metaKey;
+
+      if (isCtrl && e.key.toLowerCase() === 'z') {
+        e.preventDefault();
+        undo();
+      } else if (isCtrl && e.key.toLowerCase() === 'y') {
+        e.preventDefault();
+        redo();
+      } else if (isCtrl && e.key.toLowerCase() === 'c') {
+        e.preventDefault();
+        copySelectedNode();
+      } else if (isCtrl && e.key.toLowerCase() === 'v') {
+        e.preventDefault();
+        pasteNode();
+      } else if (e.key === 'Delete' || e.key === 'Backspace') {
+        if (selectedNodeId) {
+          e.preventDefault();
+          deleteNode(selectedNodeId);
+        }
+      }
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [undo, redo, copySelectedNode, pasteNode, selectedNodeId, deleteNode]);
+
   // Connect Pins
   const connectPins = useCallback((fromPinId: string, toPinId: string) => {
     saveHistory();
@@ -427,7 +500,7 @@ export function useCircuitState() {
   const toggleSwitch = useCallback((nodeId: string) => {
     updateActiveCircuitState((prev) => {
       const nextNodes = prev.nodes.map((n) => {
-        if (n.id === nodeId && (n.type === 'SWITCH' || n.type === 'BUTTON')) {
+        if (n.id === nodeId && (n.type === 'SWITCH' || n.type === 'BUTTON' || n.type === 'PORT_IN')) {
           const nextOutputs = n.outputs.map((p) => ({ ...p, value: !p.value }));
           return { ...n, outputs: nextOutputs };
         }
@@ -694,6 +767,8 @@ export function useCircuitState() {
     stepSimulation,
     undo,
     redo,
+    copySelectedNode,
+    pasteNode,
     canUndo: undoStack.length > 0,
     canRedo: redoStack.length > 0,
 

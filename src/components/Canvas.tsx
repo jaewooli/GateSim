@@ -506,13 +506,45 @@ export const Canvas: React.FC<CanvasProps> = ({ circuit }) => {
                 })()}
 
                 {/* Port Nodes In/Out labels */}
-                {(node.type === 'PORT_IN' || node.type === 'PORT_OUT') && (
+                {node.type === 'PORT_OUT' && (
                   <g transform={`translate(${node.x + GATE_WIDTH / 2}, ${node.y + 46})`}>
                     <text className="gate-subtext" textAnchor="middle" style={{ fontWeight: 'bold' }}>
-                      {node.type === 'PORT_IN' ? 'INPUT SOURCE' : 'OUTPUT SINK'}
+                      OUTPUT SINK
                     </text>
                   </g>
                 )}
+
+                {node.type === 'PORT_IN' && (() => {
+                  const val = node.outputs[0]?.value ?? false;
+                  return (
+                    <g>
+                      <g transform={`translate(${node.x + GATE_WIDTH / 2}, ${node.y + 56})`}>
+                        <text className="gate-subtext" textAnchor="middle" style={{ fontWeight: 'bold' }}>
+                          TEST INPUT
+                        </text>
+                      </g>
+                      <g transform={`translate(${node.x + GATE_WIDTH / 2 - 15}, ${node.y + 32})`}>
+                        {/* Toggle switch for testing */}
+                        <rect
+                          width="30"
+                          height="14"
+                          rx="7"
+                          fill={val ? 'var(--accent)' : 'var(--border-color)'}
+                          className="interactive-switch"
+                          style={{ cursor: 'pointer' }}
+                        />
+                        <circle
+                          cx={val ? 23 : 7}
+                          cy="7"
+                          r="5"
+                          fill="var(--text-primary)"
+                          className="interactive-switch"
+                          style={{ cursor: 'pointer', transition: 'cx 0.1s ease' }}
+                        />
+                      </g>
+                    </g>
+                  );
+                })()}
 
                 {/* Sub-circuit node internal representation label */}
                 {node.type === 'CUSTOM' && (
