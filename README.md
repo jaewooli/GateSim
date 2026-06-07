@@ -1,85 +1,102 @@
-# GateSim ⚡ 풀스택 인터랙티브 논리 게이트 시뮬레이터 (Full-Stack Logic Gate Simulator)
+# GateSim ⚡ — 풀스택 인터랙티브 논리 게이트 시뮬레이터
 
-GateSim은 **React, Vite, TypeScript, Express**로 제작된 풀스택 인터랙티브 웹 기반 논리 게이트 시뮬레이터입니다. 고급 엔지니어링 하드웨어(Figma, Teenage Engineering 등)의 감성을 담은 다크/라이트 테마 시스템, 생동감 있는 네온 라임 그린 활성 상태 인디케이터, 둥근 모서리의 카드 프레임 및 매끄러운 SVG 상호작용을 통해 프리미엄 디자인 감각을 극대화했습니다.
-
-현재 이 프로젝트는 단순한 정적 웹앱에서 **유저 인증 및 클라우드 진도 동기화 기능이 탑재된 풀스택 웹 애플리케이션**으로 업그레이드되었습니다.
-
----
-
-## 🚀 주요 기능 (Key Features)
-
-1. **커스텀 대화형 SVG 캔버스**: 노드 드래그 앤 드롭, 캔버스 우클릭 드래그(컨텍스트 메뉴 자동 차단)를 통한 그리드 팬(Pan) 이동, 마우스 휠을 통한 줌(Zoom), 20px 그리드 스냅 지원.
-2. **빛나는 베지에 곡선 연결선**: 출력 핀을 클릭하고 드래그하여 입력 핀에 연결. 활성화된 도선은 선명한 네온 라임 그린색으로 빛나는 파티클 애니메이션을 띄우며, 비활성화된 선은 차분한 회색으로 표시됩니다.
-3. **듀얼 시뮬레이션 엔진**:
-   - **실시간 모드**: 신호가 토글될 때 즉시 전파되며, 클록 노드가 주기적으로 작동합니다.
-   - **단계별 디버그 모드**: 시뮬레이션을 일시 중지하고 신호가 전파되는 과정을 한 틱씩 수동으로 단계별 모니터링할 수 있습니다.
-4. **듀얼 모드 및 주소 라우팅 (react-router-dom)**:
-   - **샌드박스 모드 (`/sandbox`)**: 자유롭게 게이트를 그리며 나만의 커스텀 합성 게이트를 무제한으로 만들 수 있는 공간입니다. (Sandbox에서는 탭들을 100% 가로로 시원하게 볼 수 있는 2단 '더블 데커' 헤더 탭 바가 제공됩니다.)
-   - **학습 모드 (`/curriculum/:missionId`)**: NAND/NOR 기초 게이트부터 시작하여 4비트 CPU 계산기까지 설계해 나가는 교육용 맵 시스템입니다. (실시간 시뮬레이션 진도 채점 검증기 탑재)
-5. **실시간 논리 분석기 (Logic Analyzer)**: 캔버스의 노드를 우측 패널에서 "💻 Probe"하여 화면 하단에서 실시간 전압 변화(100샘플, 50ms 간격)를 시각화합니다. 디버그 단계별 실행 모드에서도 가상 클록 진행도 비례(Time Proportionality)를 정확히 반영합니다.
-6. **유저 로그인 & 클라우드 동기화**: 헤더에서 로그인/회원가입이 가능하며, 로그인 완료 시 학습 진도 및 미션 클리어 배치 상태가 백엔드 데이터베이스 서버에 실시간으로 자동 연동됩니다. (로그아웃 시에는 로컬 브라우저 `localStorage` 기반으로 자동 폴백 처리됩니다.)
-7. **실행 취소 & 다시 실행 (Undo / Redo)**: 배치, 연결, 이름 변경, 삭제 등 모든 작업에 대해 완벽한 히스토리 추적(`Ctrl+Z` / `Ctrl+Y`)을 제공합니다.
+> **React + TypeScript + Vite + Express + SQLite** 로 제작된 프리미엄 웹 기반 논리 회로 시뮬레이터.  
+> Teenage Engineering 감성의 다크/라이트 테마, 실시간 로직 분석기, 클라우드 저장, 공유 링크까지 지원합니다.
 
 ---
 
-## 🛠 기술 스택 (Tech Stack)
+## 🚀 주요 기능
 
-### Frontend (Client)
-- **Core**: React 19 (TypeScript) + Vite + React Router v7
-- **Styling**: Vanilla CSS (CSS 변수를 활용한 Teenage Engineering 토큰 디자인 시스템)
-- **Canvas**: 무거운 그래픽 라이브러리 없이 네이티브 SVG 요소와 DOM 이벤트만으로 구현
-- **State Management**: 커스텀 React 훅 기반의 상태 엔진 ([useCircuitState.ts](file:///mnt/e/Programming/Projects/Hosting/GateSim/src/hooks/useCircuitState.ts))
+### 🖥 캔버스 & 편집
+- **드래그 앤 드롭 노드 배치** — 20px 그리드 스냅
+- **SVG 베지에 도선(Wire)** — 활성 시 네온 라임 그린 파티클 애니메이션
+- **우클릭 드래그 팬(Pan)** + **스크롤 줌(Zoom)** + **핀치 투 줌(터치)**
+- **다중 선택** (Shift + 드래그 영역) & 복사/붙여넣기 (`Ctrl+C/V`)
+- **무제한 Undo / Redo** (`Ctrl+Z` / `Ctrl+Y`)
+- **핀 라벨 토글** (커스텀 게이트 I/O 라벨 표시/숨김)
 
-### Backend (Server)
-- **Runtime**: Node.js
-- **Framework**: Express (CommonJS 구동 포맷 `server.cjs` 제공)
-- **Database**: 경량 파일 기반 관계형 데이터베이스 **SQLite** (`db/gatesim.db`에 테이블로 보존)
-- **Authentication**: **JWT (JSON Web Tokens)** 및 고유 암호키 파일(`db/jwt_secret.key`)을 활용한 무상태 인증 시스템 (서버가 재기동되거나 PM2가 리로드되어도 7일간 로그인 세션 유지)
+### ⚙️ 시뮬레이션 엔진
+- **실시간 모드** — 신호 토글 시 즉시 전파, 클록 노드 주기 작동
+- **단계별 디버그 모드** — `⏭ Step` 버튼으로 1틱씩 수동 진행
+- **오실레이션 감지** — 무한 루프 회로 자동 감지 및 안전 캡 적용
+
+### 📊 실시간 로직 분석기 (Logic Analyzer)
+- 임의 노드 **Probe** → 하단 파형 뷰어에 실시간 표시
+- **줌 슬라이더** (1x ~ 15x, 오른쪽 = 확대)
+- **스크롤 슬라이더** — 최근 1000샘플 히스토리 탐색
+- **Pin to Live / Unpin** 토글 — 과거 파형 고정 분석 지원
+- **VCD 내보내기** — 표준 포맷으로 파형 데이터 저장
+
+### 🧩 커스텀 합성 게이트
+- Sub-circuit 탭에서 회로를 설계 후 `📦 Package Gate`로 블랙박스화
+- 패키징된 게이트는 Sidebar 도구함에 즉시 등록, 다른 탭에서 배치 가능
+
+### 🎓 학습 모드 (Curriculum)
+- NAND 기초 → 4비트 CPU 순서대로 미션 진행
+- 각 미션 별 실시간 정답 검증 (목표 진리표와 실제 시뮬레이션 비교)
+- 미션 클리어 시 서버에 진도 저장
+
+### ☁️ 클라우드 저장 & 공유 링크
+- 로그인 후 Sidebar > `☁️ Cloud Storage` 패널에서 회로 저장/불러오기/삭제
+- **공유 링크 생성** — 1클릭으로 `?share=id` URL 복사
+- 링크 접속 시 회로 자동 로드 (저장 시점의 탭/상태까지 복원)
+- 공유 링크 파라미터는 URL에 계속 유지 (새로고침/북마크 지원)
+- 비로그인 공개 공유 가능 (GET 엔드포인트는 인증 불필요)
+
+### 🔐 인증 시스템
+- 회원가입 / 로그인 (JWT, 7일 세션)
+- 비밀번호 **PBKDF2-SHA512** 해싱 (솔트 포함)
+- 로그아웃 시 `localStorage` 폴백으로 오프라인 작동
+
+### 🎨 UI/UX
+- **다크 / 라이트 테마** 즉시 전환
+- **헤더 드롭다운 메뉴** — `⋯ More` (설정), `📁 File` (내보내기/불러오기/초기화)
+- **⌨️ 키보드 단축키** 치트시트 모달
+- **터치 지원** — 핀치 줌, 터치 드래그
 
 ---
 
-## 💻 실행 방법 (How to Run)
+## 🛠 기술 스택
 
-### 1. 패키지 설치
-프로젝트 폴더 내에서 아래 명령을 실행하여 프론트엔드 및 백엔드에 필요한 모든 모듈을 설치합니다.
+| 영역 | 기술 |
+|---|---|
+| Frontend | React 19, TypeScript, Vite, React Router v7 |
+| Styling | Vanilla CSS (CSS 변수 기반 디자인 토큰) |
+| Canvas | 네이티브 SVG + DOM 이벤트 (외부 라이브러리 없음) |
+| State | 커스텀 훅 `useCircuitState.ts` (단일 진실 공급원) |
+| Backend | Node.js + Express (`server.cjs`, CommonJS) |
+| Database | SQLite (`better-sqlite3`, `db/gatesim.db`) |
+| Auth | JWT + PBKDF2-SHA512 비밀번호 해싱 |
+| Deploy | PM2 (백엔드) + Nginx (리버스 프록시) |
+
+---
+
+## 💻 실행 방법
+
+### 로컬 개발 (`npm run dev`)
 ```bash
 npm install
-```
-
-### 2. 로컬 개발 환경 실행 (포트 8081)
-프론트엔드 Vite 개발 서버를 기동합니다.
-```bash
 npm run dev
+# → http://localhost:8081/gatesimulator/sandbox
 ```
-브라우저에서 `http://localhost:8081/sandbox` 로 이동하여 실행합니다.
+> 개발 모드에서는 백엔드 없이 로컬 상태만 사용합니다 (클라우드/공유 기능은 배포 환경에서만 동작).
 
-### 3. 프로덕션 빌드 및 백엔드 통합 가동 (Nginx + PM2 배포)
-실제 백엔드 데이터 저장 기능이 작동하는 풀스택 프로덕션 서버를 배포하는 방법입니다.
-
+### 프로덕션 빌드 & 배포
 ```bash
-# 1. 프론트엔드 배포 정적 파일 생성 (dist/ 폴더에 빌드)
+# 1. 프론트엔드 정적 파일 빌드
 npm run build
 
-# 2. PM2를 통한 백엔드 API 서비스 백그라운드 구동 시작
+# 2. PM2로 백엔드 API 서버 기동
 pm2 start server.cjs --name gatesimulator
-
-# 3. 서버 부팅 시 자동 재기동 등록 및 상태 저장
-pm2 startup
-pm2 save
+pm2 startup && pm2 save
 ```
 
-#### Nginx Reverse Proxy 설정 예시
-Vite 앱에 지정된 서브경로 `/gatesimulator/`로 들어오는 모든 요청(정적 파일 서빙 및 API 요청 포함)을 로컬 PM2 서버로 보내기 위해 Nginx 설정(`sites-available/default`)의 `server` 블록 내부에 아래 설정을 추가합니다.
-
+#### Nginx 설정 예시
 ```nginx
 location /gatesimulator {
     proxy_pass http://127.0.0.1:8081;
     proxy_set_header Host $host;
     proxy_set_header X-Real-IP $remote_addr;
-    proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
-    proxy_set_header X-Forwarded-Proto $scheme;
-
-    # 웹소켓 및 실시간 접속 캐시 버패스 설정
     proxy_http_version 1.1;
     proxy_set_header Upgrade $http_upgrade;
     proxy_set_header Connection 'upgrade';
@@ -89,28 +106,78 @@ location /gatesimulator {
 
 ---
 
-## 📂 프로젝트 구조 (Project Structure)
+## 📂 프로젝트 구조
 
-* [server.cjs](file:///mnt/e/Programming/Projects/Hosting/GateSim/server.cjs): 풀스택 Express API 백엔드 구동 스크립트
-* [design_plan.md](file:///mnt/e/Programming/Projects/Hosting/GateSim/design_plan.md): 게이트 모델 구조 및 시뮬레이션 설계 명세
-* [session_context.md](file:///mnt/e/Programming/Projects/Hosting/GateSim/session_context.md): 전체 코드 요약본 (AI 세션 갱신용 요약 파일)
-* [package.json](file:///mnt/e/Programming/Projects/Hosting/GateSim/package.json): 프론트엔드/백엔드 의존성 매니저
-* [src/](file:///mnt/e/Programming/Projects/Hosting/GateSim/src)
-  * [App.css](file:///mnt/e/Programming/Projects/Hosting/GateSim/src/App.css): UI 레이아웃, 더블 데커 탭 바, 정렬 스타일
-  * [App.tsx](file:///mnt/e/Programming/Projects/Hosting/GateSim/src/App.tsx): 라우트 주입 및 메인 레이아웃 매핑
-  * [index.css](file:///mnt/e/Programming/Projects/Hosting/GateSim/src/index.css): 틴에이지 엔지니어링 감성의 전역 색상 변수 토큰 선언
-  * [main.tsx](file:///mnt/e/Programming/Projects/Hosting/GateSim/src/main.tsx): 라우팅 주입 및 DOM 렌더링 진입점
-  * **types/**
-    * [index.ts](file:///mnt/e/Programming/Projects/Hosting/GateSim/src/types/index.ts): 노드, 핀, 와이어 도선 구조 핵심 타입 모델정의
-  * **hooks/**
-    * [useCircuitState.ts](file:///mnt/e/Programming/Projects/Hosting/GateSim/src/hooks/useCircuitState.ts): 클라우드 동기화, 분석기 타이머 제어, 캔버스 연산 중앙 훅
-  * **utils/**
-    * [simulation.ts](file:///mnt/e/Programming/Projects/Hosting/GateSim/src/utils/simulation.ts): 큐(Queue) 기반 반응형 신호 전파 연산기
-  * **components/**
-    * [Header.tsx](file:///mnt/e/Programming/Projects/Hosting/GateSim/src/components/Header.tsx): 제어 바, 로그인 사용자 상태 확인 및 모달 제어
-    * [Sidebar.tsx](file:///mnt/e/Programming/Projects/Hosting/GateSim/src/components/Sidebar.tsx): 부품 상자 및 학습 모드 미션 브리핑 목록
-    * [Canvas.tsx](file:///mnt/e/Programming/Projects/Hosting/GateSim/src/components/Canvas.tsx): SVG 캔버스 물리 동작 렌더링 (그리드 스냅, 와이어 생성 등)
-    * [Inspector.tsx](file:///mnt/e/Programming/Projects/Hosting/GateSim/src/components/Inspector.tsx): 선택 노드 편집기 혹은 탭 요약 대시보드
-    * [WaveformViewer.tsx](file:///mnt/e/Programming/Projects/Hosting/GateSim/src/components/WaveformViewer.tsx): 로직 분석기 파형 드로잉
-    * [CreateCustomGateModal.tsx](file:///mnt/e/Programming/Projects/Hosting/GateSim/src/components/CreateCustomGateModal.tsx): 합성 게이트 생성 창
-    * [AuthModal.tsx](file:///mnt/e/Programming/Projects/Hosting/GateSim/src/components/AuthModal.tsx): 회원가입 및 로그인 모달 창
+```
+GateSim/
+├── server.cjs              # Express API 서버 (인증, 회로 CRUD, 공유)
+├── db/
+│   ├── gatesim.db          # SQLite 데이터베이스 (자동 생성)
+│   └── jwt_secret.key      # JWT 서명 키 (자동 생성)
+├── dist/                   # 빌드 결과물 (npm run build)
+├── src/
+│   ├── main.tsx            # 앱 진입점 + BrowserRouter
+│   ├── App.tsx             # 레이아웃 + 컴포넌트 조립
+│   ├── App.css             # 레이아웃 스타일
+│   ├── index.css           # 전역 CSS 변수 (디자인 토큰)
+│   ├── types/index.ts      # Node, Pin, Wire, Tab 타입 정의
+│   ├── hooks/
+│   │   └── useCircuitState.ts  # 핵심 상태 엔진 (2400+ 줄)
+│   ├── utils/
+│   │   └── simulation.ts   # 큐 기반 신호 전파 알고리즘
+│   └── components/
+│       ├── Header.tsx       # 제어 바 + 드롭다운 메뉴 + 단축키 모달
+│       ├── Sidebar.tsx      # 부품함 + 클라우드 저장 패널
+│       ├── Canvas.tsx       # SVG 캔버스 (터치/마우스 이벤트)
+│       ├── Inspector.tsx    # 선택 노드 편집 + 탭 대시보드
+│       ├── WaveformViewer.tsx  # 로직 분석기 파형 뷰어
+│       ├── CurriculumDock.tsx  # 학습 모드 미션 패널
+│       ├── CreateCustomGateModal.tsx  # 게이트 패키징 모달
+│       └── AuthModal.tsx    # 로그인/회원가입 모달
+└── design_plan.md          # 게이트 모델 설계 명세
+```
+
+---
+
+## 🔮 향후 개발 로드맵
+
+| 상태 | 기능 | 설명 |
+|---|---|---|
+| 🎯 계획됨 | **다중 선택 이동** | 여러 게이트를 한꺼번에 드래그 이동 |
+| 🎯 계획됨 | **PNG/SVG 내보내기** | SVG/PNG로 회로 스냅샷 저장 |
+| 🎯 계획됨 | **버스(Bus) 와이어** | 8비트/16비트 묶음 도선으로 복잡한 회로 정리 |
+| 🎯 계획됨 | **Flip-Flop / ALU 미션** | SR Latch, D Flip-Flop, 4비트 ALU 교육 미션 추가 |
+| 🟡 보류 | **미니맵** | 큰 회로 전체 조감도 (우하단 오버레이) |
+| 🟡 보류 | **회로 코멘트 박스** | 캔버스에 텍스트 주석 추가 |
+| 🟢 낮음 | **공유 링크 만료/비공개** | 비밀번호 보호 공유, 링크 만료 기능 |
+| 🟢 낮음 | **WebSocket 협업** | 여러 명이 동시에 같은 회로 편집 |
+
+---
+
+## 📝 AI 세션 이어가기 (Session Continuity)
+
+> 이 섹션은 AI 코딩 어시스턴트와 세션이 끊겼을 때 빠르게 이어갈 수 있도록 핵심 맥락을 기록합니다.
+
+### 현재 상태 (2026-06-08 기준)
+- **모든 기능 정상 작동** — Logic Analyzer, Cloud Save, Share Link, Auth
+- **공유 링크 수정 완료** — `navigate()` 대신 `window.history.replaceState()` 사용으로 state reset 버그 수정
+- **Alert 반복 버그 수정** — `useRef`로 share ID 중복 로드 방지
+- **헤더 메뉴 간소화** — `⋯ More` / `📁 File` 드롭다운으로 묶음
+
+### 핵심 파일 & 역할
+- `src/hooks/useCircuitState.ts` — 모든 상태의 단일 진실 공급원. 클라우드 저장/로드/공유 로직 포함 (약 2400줄)
+- `server.cjs` — Express API. `/api/auth`, `/api/circuits`, `/api/circuits/share/:id` 엔드포인트
+- `src/components/WaveformViewer.tsx` — `zoomLevel` (1~15) → `visibleSamples` 역산 방식
+- `src/components/Header.tsx` — `isMoreOpen` / `isFileOpen` 상태로 드롭다운 제어
+
+### 알려진 제약 / 주의사항
+- `npm run build` 후 PM2로 `server.cjs` 구동 → Nginx가 `/gatesimulator` 경로를 프록시
+- 로컬 `npm run dev` 환경에서는 백엔드 API가 없어 클라우드 기능은 동작 안 함
+- `useCircuitState.ts`의 `saveHistory` 함수는 `useCallback`이지만 deps가 많아 자주 재생성됨 — useEffect deps에 추가 시 무한루프 주의
+- `hasLoadedShareRef` — hook 내 `useRef`로 선언되어 동일 컴포넌트 생애주기 내 중복 로드 방지
+
+### 다음 세션에서 바로 시작할 수 있는 작업 (사용자 선택)
+1. **다중 선택 이동** — `Canvas.tsx`에서 `selectedNodeIds: Set<string>` 상태 추가, 드래그 시 선택된 모든 노드 동시 이동, `useCircuitState.ts`의 `moveNode`를 `moveNodes(ids, dx, dy)`로 확장
+2. **PNG/SVG 내보내기** — `Canvas.tsx`의 SVG ref를 `new Blob([svgEl.outerHTML], { type: 'image/svg+xml' })`로 다운로드, PNG 변환은 Canvas API 사용
+3. **버스(Bus) 와이어** — `types/index.ts`에 `BusWire` 타입 추가, 8비트 묶음 도선 렌더링 및 시뮬레이션 로직 설계
+4. **Flip-Flop / ALU 미션** — `useCircuitState.ts`의 `MISSIONS` 배열에 SR Latch, D Flip-Flop, 4비트 ALU 미션 데이터 추가, 진리표 검증 로직 확장

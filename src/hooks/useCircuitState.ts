@@ -1,9 +1,22 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
-import type { Node, Connection, SubCircuitDefinition, Tab, CanvasTransform, NodeType, Pin, CircuitState, Mission } from '../types';
+import type { Node, Connection, SubCircuitDefinition, Tab, CanvasTransform, NodeType, Pin, CircuitState, Mission, SignalUpdate } from '../types';
 import { runSimulationFull, runSimulationStep } from '../utils/simulation';
 import { useLocation, useNavigate, useMatch } from 'react-router-dom';
 
 const INITIAL_TRANSFORM: CanvasTransform = { x: 0, y: 0, zoom: 1 };
+
+interface SavedCircuitState {
+  tabs: Tab[];
+  customGates: Record<string, SubCircuitDefinition>;
+  activeTabId?: string;
+}
+
+interface CloudCircuit {
+  id: string;
+  name: string;
+  state: SavedCircuitState;
+  updatedAt?: string;
+}
 
 function createDemoNode(
   id: string,
@@ -40,6 +53,8 @@ function createDemoNode(
     label,
     clockInterval: type === 'CLOCK' ? 1000 : undefined,
     clockState: type === 'CLOCK' ? false : undefined,
+    busWidth: type.startsWith('BUS_') ? 8 : undefined,
+    busValue: type === 'BUS_INPUT' ? 0 : undefined,
   };
 }
 
@@ -255,6 +270,29 @@ export const DEMO_CUSTOM_GATES: Record<string, SubCircuitDefinition> = {
       { id: 'dlatch-conn-11', fromPinId: 'dlatch-nor-qb-out-0', toPinId: 'dlatch-out-qb-in-0' },
     ],
   },
+  'sub-d-flipflop': {
+    id: 'sub-d-flipflop',
+    name: 'D_FLIP_FLOP',
+    color: '#7C4DFF',
+    nodes: [
+      createDemoNode('dff-in-d', 'PORT_IN', 'IN PORT', 60, 100, 0, 1, undefined, 'D'),
+      createDemoNode('dff-in-clk', 'PORT_IN', 'IN PORT', 60, 260, 0, 1, undefined, 'CLK'),
+      createDemoNode('dff-not-clk', 'NOT', 'NOT', 220, 260, 1, 1, undefined, 'NOT CLK'),
+      createDemoNode('dff-master', 'CUSTOM', 'D_LATCH', 380, 100, 2, 2, 'sub-d-latch', 'Master'),
+      createDemoNode('dff-slave', 'CUSTOM', 'D_LATCH', 620, 100, 2, 2, 'sub-d-latch', 'Slave'),
+      createDemoNode('dff-out-q', 'PORT_OUT', 'OUT PORT', 860, 100, 1, 0, undefined, 'Q'),
+      createDemoNode('dff-out-qb', 'PORT_OUT', 'OUT PORT', 860, 260, 1, 0, undefined, 'Q_bar'),
+    ],
+    connections: [
+      { id: 'dff-c1', fromPinId: 'dff-in-d-out-0', toPinId: 'dff-master-in-0' },
+      { id: 'dff-c2', fromPinId: 'dff-in-clk-out-0', toPinId: 'dff-not-clk-in-0' },
+      { id: 'dff-c3', fromPinId: 'dff-not-clk-out-0', toPinId: 'dff-master-in-1' },
+      { id: 'dff-c4', fromPinId: 'dff-master-out-0', toPinId: 'dff-slave-in-0' },
+      { id: 'dff-c5', fromPinId: 'dff-in-clk-out-0', toPinId: 'dff-slave-in-1' },
+      { id: 'dff-c6', fromPinId: 'dff-slave-out-0', toPinId: 'dff-out-q-in-0' },
+      { id: 'dff-c7', fromPinId: 'dff-slave-out-1', toPinId: 'dff-out-qb-in-0' },
+    ],
+  },
   'sub-decoder': {
     id: 'sub-decoder',
     name: 'DECODER',
@@ -317,6 +355,122 @@ export const DEMO_CUSTOM_GATES: Record<string, SubCircuitDefinition> = {
       { id: 'alu-c11', fromPinId: 'alu-ha-out-0', toPinId: 'alu-mux2-in-1' },
       { id: 'alu-c12', fromPinId: 'alu-in-op1-out-0', toPinId: 'alu-mux2-in-2' },
       { id: 'alu-c13', fromPinId: 'alu-mux2-out-0', toPinId: 'alu-out-in-0' },
+    ]
+  },
+  'sub-alu-4bit': {
+    id: 'sub-alu-4bit',
+    name: 'ALU_4BIT',
+    color: '#00C853',
+    nodes: [
+      createDemoNode('alu4-a0', 'PORT_IN', 'IN PORT', 60, 40, 0, 1, undefined, 'A0'),
+      createDemoNode('alu4-a1', 'PORT_IN', 'IN PORT', 60, 130, 0, 1, undefined, 'A1'),
+      createDemoNode('alu4-a2', 'PORT_IN', 'IN PORT', 60, 220, 0, 1, undefined, 'A2'),
+      createDemoNode('alu4-a3', 'PORT_IN', 'IN PORT', 60, 310, 0, 1, undefined, 'A3'),
+      createDemoNode('alu4-b0', 'PORT_IN', 'IN PORT', 60, 430, 0, 1, undefined, 'B0'),
+      createDemoNode('alu4-b1', 'PORT_IN', 'IN PORT', 60, 520, 0, 1, undefined, 'B1'),
+      createDemoNode('alu4-b2', 'PORT_IN', 'IN PORT', 60, 610, 0, 1, undefined, 'B2'),
+      createDemoNode('alu4-b3', 'PORT_IN', 'IN PORT', 60, 700, 0, 1, undefined, 'B3'),
+      createDemoNode('alu4-op0', 'PORT_IN', 'IN PORT', 60, 820, 0, 1, undefined, 'Op0'),
+      createDemoNode('alu4-op1', 'PORT_IN', 'IN PORT', 60, 920, 0, 1, undefined, 'Op1'),
+      createDemoNode('alu4-sub', 'AND', 'AND', 230, 870, 2, 1, undefined, 'SUB'),
+      createDemoNode('alu4-and0', 'AND', 'AND', 260, 40, 2, 1),
+      createDemoNode('alu4-or0', 'OR', 'OR', 260, 120, 2, 1),
+      createDemoNode('alu4-xorb0', 'XOR', 'XOR', 260, 200, 2, 1, undefined, 'B0^SUB'),
+      createDemoNode('alu4-fa0', 'CUSTOM', 'FULL_ADDER', 440, 120, 3, 2, 'sub-full-adder', 'FA0'),
+      createDemoNode('alu4-mux10', 'CUSTOM', 'MUX_2_TO_1', 640, 40, 3, 1, 'sub-mux', 'Logic0'),
+      createDemoNode('alu4-mux20', 'CUSTOM', 'MUX_2_TO_1', 820, 80, 3, 1, 'sub-mux', 'R0 Sel'),
+      createDemoNode('alu4-and1', 'AND', 'AND', 260, 310, 2, 1),
+      createDemoNode('alu4-or1', 'OR', 'OR', 260, 390, 2, 1),
+      createDemoNode('alu4-xorb1', 'XOR', 'XOR', 260, 470, 2, 1, undefined, 'B1^SUB'),
+      createDemoNode('alu4-fa1', 'CUSTOM', 'FULL_ADDER', 440, 390, 3, 2, 'sub-full-adder', 'FA1'),
+      createDemoNode('alu4-mux11', 'CUSTOM', 'MUX_2_TO_1', 640, 310, 3, 1, 'sub-mux', 'Logic1'),
+      createDemoNode('alu4-mux21', 'CUSTOM', 'MUX_2_TO_1', 820, 350, 3, 1, 'sub-mux', 'R1 Sel'),
+      createDemoNode('alu4-and2', 'AND', 'AND', 1040, 40, 2, 1),
+      createDemoNode('alu4-or2', 'OR', 'OR', 1040, 120, 2, 1),
+      createDemoNode('alu4-xorb2', 'XOR', 'XOR', 1040, 200, 2, 1, undefined, 'B2^SUB'),
+      createDemoNode('alu4-fa2', 'CUSTOM', 'FULL_ADDER', 1220, 120, 3, 2, 'sub-full-adder', 'FA2'),
+      createDemoNode('alu4-mux12', 'CUSTOM', 'MUX_2_TO_1', 1420, 40, 3, 1, 'sub-mux', 'Logic2'),
+      createDemoNode('alu4-mux22', 'CUSTOM', 'MUX_2_TO_1', 1600, 80, 3, 1, 'sub-mux', 'R2 Sel'),
+      createDemoNode('alu4-and3', 'AND', 'AND', 1040, 310, 2, 1),
+      createDemoNode('alu4-or3', 'OR', 'OR', 1040, 390, 2, 1),
+      createDemoNode('alu4-xorb3', 'XOR', 'XOR', 1040, 470, 2, 1, undefined, 'B3^SUB'),
+      createDemoNode('alu4-fa3', 'CUSTOM', 'FULL_ADDER', 1220, 390, 3, 2, 'sub-full-adder', 'FA3'),
+      createDemoNode('alu4-mux13', 'CUSTOM', 'MUX_2_TO_1', 1420, 310, 3, 1, 'sub-mux', 'Logic3'),
+      createDemoNode('alu4-mux23', 'CUSTOM', 'MUX_2_TO_1', 1600, 350, 3, 1, 'sub-mux', 'R3 Sel'),
+      createDemoNode('alu4-r0', 'PORT_OUT', 'OUT PORT', 1840, 80, 1, 0, undefined, 'R0'),
+      createDemoNode('alu4-r1', 'PORT_OUT', 'OUT PORT', 1840, 200, 1, 0, undefined, 'R1'),
+      createDemoNode('alu4-r2', 'PORT_OUT', 'OUT PORT', 1840, 320, 1, 0, undefined, 'R2'),
+      createDemoNode('alu4-r3', 'PORT_OUT', 'OUT PORT', 1840, 440, 1, 0, undefined, 'R3'),
+      createDemoNode('alu4-carry', 'PORT_OUT', 'OUT PORT', 1840, 560, 1, 0, undefined, 'Carry'),
+    ],
+    connections: [
+      { id: 'alu4-c-sub1', fromPinId: 'alu4-op0-out-0', toPinId: 'alu4-sub-in-0' },
+      { id: 'alu4-c-sub2', fromPinId: 'alu4-op1-out-0', toPinId: 'alu4-sub-in-1' },
+      { id: 'alu4-c-a0-and', fromPinId: 'alu4-a0-out-0', toPinId: 'alu4-and0-in-0' },
+      { id: 'alu4-c-b0-and', fromPinId: 'alu4-b0-out-0', toPinId: 'alu4-and0-in-1' },
+      { id: 'alu4-c-a0-or', fromPinId: 'alu4-a0-out-0', toPinId: 'alu4-or0-in-0' },
+      { id: 'alu4-c-b0-or', fromPinId: 'alu4-b0-out-0', toPinId: 'alu4-or0-in-1' },
+      { id: 'alu4-c-b0-xor', fromPinId: 'alu4-b0-out-0', toPinId: 'alu4-xorb0-in-0' },
+      { id: 'alu4-c-sub-xor0', fromPinId: 'alu4-sub-out-0', toPinId: 'alu4-xorb0-in-1' },
+      { id: 'alu4-c-a0-fa', fromPinId: 'alu4-a0-out-0', toPinId: 'alu4-fa0-in-0' },
+      { id: 'alu4-c-b0-fa', fromPinId: 'alu4-xorb0-out-0', toPinId: 'alu4-fa0-in-1' },
+      { id: 'alu4-c-cin0', fromPinId: 'alu4-sub-out-0', toPinId: 'alu4-fa0-in-2' },
+      { id: 'alu4-c-and0-m1', fromPinId: 'alu4-and0-out-0', toPinId: 'alu4-mux10-in-0' },
+      { id: 'alu4-c-or0-m1', fromPinId: 'alu4-or0-out-0', toPinId: 'alu4-mux10-in-1' },
+      { id: 'alu4-c-op0-m10', fromPinId: 'alu4-op0-out-0', toPinId: 'alu4-mux10-in-2' },
+      { id: 'alu4-c-m10-m20', fromPinId: 'alu4-mux10-out-0', toPinId: 'alu4-mux20-in-0' },
+      { id: 'alu4-c-fa0-m20', fromPinId: 'alu4-fa0-out-0', toPinId: 'alu4-mux20-in-1' },
+      { id: 'alu4-c-op1-m20', fromPinId: 'alu4-op1-out-0', toPinId: 'alu4-mux20-in-2' },
+      { id: 'alu4-c-r0', fromPinId: 'alu4-mux20-out-0', toPinId: 'alu4-r0-in-0' },
+      { id: 'alu4-c-a1-and', fromPinId: 'alu4-a1-out-0', toPinId: 'alu4-and1-in-0' },
+      { id: 'alu4-c-b1-and', fromPinId: 'alu4-b1-out-0', toPinId: 'alu4-and1-in-1' },
+      { id: 'alu4-c-a1-or', fromPinId: 'alu4-a1-out-0', toPinId: 'alu4-or1-in-0' },
+      { id: 'alu4-c-b1-or', fromPinId: 'alu4-b1-out-0', toPinId: 'alu4-or1-in-1' },
+      { id: 'alu4-c-b1-xor', fromPinId: 'alu4-b1-out-0', toPinId: 'alu4-xorb1-in-0' },
+      { id: 'alu4-c-sub-xor1', fromPinId: 'alu4-sub-out-0', toPinId: 'alu4-xorb1-in-1' },
+      { id: 'alu4-c-a1-fa', fromPinId: 'alu4-a1-out-0', toPinId: 'alu4-fa1-in-0' },
+      { id: 'alu4-c-b1-fa', fromPinId: 'alu4-xorb1-out-0', toPinId: 'alu4-fa1-in-1' },
+      { id: 'alu4-c-carry01', fromPinId: 'alu4-fa0-out-1', toPinId: 'alu4-fa1-in-2' },
+      { id: 'alu4-c-and1-m1', fromPinId: 'alu4-and1-out-0', toPinId: 'alu4-mux11-in-0' },
+      { id: 'alu4-c-or1-m1', fromPinId: 'alu4-or1-out-0', toPinId: 'alu4-mux11-in-1' },
+      { id: 'alu4-c-op0-m11', fromPinId: 'alu4-op0-out-0', toPinId: 'alu4-mux11-in-2' },
+      { id: 'alu4-c-m11-m21', fromPinId: 'alu4-mux11-out-0', toPinId: 'alu4-mux21-in-0' },
+      { id: 'alu4-c-fa1-m21', fromPinId: 'alu4-fa1-out-0', toPinId: 'alu4-mux21-in-1' },
+      { id: 'alu4-c-op1-m21', fromPinId: 'alu4-op1-out-0', toPinId: 'alu4-mux21-in-2' },
+      { id: 'alu4-c-r1', fromPinId: 'alu4-mux21-out-0', toPinId: 'alu4-r1-in-0' },
+      { id: 'alu4-c-a2-and', fromPinId: 'alu4-a2-out-0', toPinId: 'alu4-and2-in-0' },
+      { id: 'alu4-c-b2-and', fromPinId: 'alu4-b2-out-0', toPinId: 'alu4-and2-in-1' },
+      { id: 'alu4-c-a2-or', fromPinId: 'alu4-a2-out-0', toPinId: 'alu4-or2-in-0' },
+      { id: 'alu4-c-b2-or', fromPinId: 'alu4-b2-out-0', toPinId: 'alu4-or2-in-1' },
+      { id: 'alu4-c-b2-xor', fromPinId: 'alu4-b2-out-0', toPinId: 'alu4-xorb2-in-0' },
+      { id: 'alu4-c-sub-xor2', fromPinId: 'alu4-sub-out-0', toPinId: 'alu4-xorb2-in-1' },
+      { id: 'alu4-c-a2-fa', fromPinId: 'alu4-a2-out-0', toPinId: 'alu4-fa2-in-0' },
+      { id: 'alu4-c-b2-fa', fromPinId: 'alu4-xorb2-out-0', toPinId: 'alu4-fa2-in-1' },
+      { id: 'alu4-c-carry12', fromPinId: 'alu4-fa1-out-1', toPinId: 'alu4-fa2-in-2' },
+      { id: 'alu4-c-and2-m1', fromPinId: 'alu4-and2-out-0', toPinId: 'alu4-mux12-in-0' },
+      { id: 'alu4-c-or2-m1', fromPinId: 'alu4-or2-out-0', toPinId: 'alu4-mux12-in-1' },
+      { id: 'alu4-c-op0-m12', fromPinId: 'alu4-op0-out-0', toPinId: 'alu4-mux12-in-2' },
+      { id: 'alu4-c-m12-m22', fromPinId: 'alu4-mux12-out-0', toPinId: 'alu4-mux22-in-0' },
+      { id: 'alu4-c-fa2-m22', fromPinId: 'alu4-fa2-out-0', toPinId: 'alu4-mux22-in-1' },
+      { id: 'alu4-c-op1-m22', fromPinId: 'alu4-op1-out-0', toPinId: 'alu4-mux22-in-2' },
+      { id: 'alu4-c-r2', fromPinId: 'alu4-mux22-out-0', toPinId: 'alu4-r2-in-0' },
+      { id: 'alu4-c-a3-and', fromPinId: 'alu4-a3-out-0', toPinId: 'alu4-and3-in-0' },
+      { id: 'alu4-c-b3-and', fromPinId: 'alu4-b3-out-0', toPinId: 'alu4-and3-in-1' },
+      { id: 'alu4-c-a3-or', fromPinId: 'alu4-a3-out-0', toPinId: 'alu4-or3-in-0' },
+      { id: 'alu4-c-b3-or', fromPinId: 'alu4-b3-out-0', toPinId: 'alu4-or3-in-1' },
+      { id: 'alu4-c-b3-xor', fromPinId: 'alu4-b3-out-0', toPinId: 'alu4-xorb3-in-0' },
+      { id: 'alu4-c-sub-xor3', fromPinId: 'alu4-sub-out-0', toPinId: 'alu4-xorb3-in-1' },
+      { id: 'alu4-c-a3-fa', fromPinId: 'alu4-a3-out-0', toPinId: 'alu4-fa3-in-0' },
+      { id: 'alu4-c-b3-fa', fromPinId: 'alu4-xorb3-out-0', toPinId: 'alu4-fa3-in-1' },
+      { id: 'alu4-c-carry23', fromPinId: 'alu4-fa2-out-1', toPinId: 'alu4-fa3-in-2' },
+      { id: 'alu4-c-and3-m1', fromPinId: 'alu4-and3-out-0', toPinId: 'alu4-mux13-in-0' },
+      { id: 'alu4-c-or3-m1', fromPinId: 'alu4-or3-out-0', toPinId: 'alu4-mux13-in-1' },
+      { id: 'alu4-c-op0-m13', fromPinId: 'alu4-op0-out-0', toPinId: 'alu4-mux13-in-2' },
+      { id: 'alu4-c-m13-m23', fromPinId: 'alu4-mux13-out-0', toPinId: 'alu4-mux23-in-0' },
+      { id: 'alu4-c-fa3-m23', fromPinId: 'alu4-fa3-out-0', toPinId: 'alu4-mux23-in-1' },
+      { id: 'alu4-c-op1-m23', fromPinId: 'alu4-op1-out-0', toPinId: 'alu4-mux23-in-2' },
+      { id: 'alu4-c-r3', fromPinId: 'alu4-mux23-out-0', toPinId: 'alu4-r3-in-0' },
+      { id: 'alu4-c-carry', fromPinId: 'alu4-fa3-out-1', toPinId: 'alu4-carry-in-0' },
     ]
   },
   'sub-register-4bit': {
@@ -532,6 +686,14 @@ const DEMO_TABS: Tab[] = [
     },
   },
   {
+    id: 'sub-d-flipflop',
+    name: 'D Flip-Flop',
+    state: {
+      nodes: JSON.parse(JSON.stringify(DEMO_CUSTOM_GATES['sub-d-flipflop'].nodes)),
+      connections: JSON.parse(JSON.stringify(DEMO_CUSTOM_GATES['sub-d-flipflop'].connections)),
+    },
+  },
+  {
     id: 'sub-decoder',
     name: 'Decoder',
     state: {
@@ -545,6 +707,14 @@ const DEMO_TABS: Tab[] = [
     state: {
       nodes: JSON.parse(JSON.stringify(DEMO_CUSTOM_GATES['sub-alu-1bit'].nodes)),
       connections: JSON.parse(JSON.stringify(DEMO_CUSTOM_GATES['sub-alu-1bit'].connections)),
+    },
+  },
+  {
+    id: 'sub-alu-4bit',
+    name: '4-Bit ALU',
+    state: {
+      nodes: JSON.parse(JSON.stringify(DEMO_CUSTOM_GATES['sub-alu-4bit'].nodes)),
+      connections: JSON.parse(JSON.stringify(DEMO_CUSTOM_GATES['sub-alu-4bit'].connections)),
     },
   },
   {
@@ -720,8 +890,24 @@ export const MISSIONS: Mission[] = [
     hint: 'D 포트와 CLK 포트를 AND 게이트에 연결합니다. 그리고 D 포트를 NOT 게이트로 반전시킨 출력과 CLK 포트를 또 다른 AND 게이트에 연결합니다. 이 두 AND 게이트의 출력을 각각 SR Latch(혹은 교차 피드백 구조)의 S, R 입력단으로 공급하면 래치가 제어됩니다. (주의: NOR 기반 SR Latch를 쓰므로, Q를 기억하는 NOR 게이트의 다른 입력에는 NOT D와 CLK을 결합한 R AND 출리가 연결되어야 합니다.)'
   },
   {
+    id: 'mission-d-flipflop',
+    title: '미션 10: D Flip-Flop 제작',
+    description: '마스터-슬레이브 D Latch 구조로 CLK 상승 에지에서만 D 값을 Q에 저장하는 D Flip-Flop을 완성하세요. 위에서 아래 순서대로 입력 D, CLK와 출력 Q, Q_bar를 배치하세요.',
+    targetTabId: 'sub-d-flipflop',
+    inputsRequired: ['D', 'CLK'],
+    outputsRequired: ['Q', 'Q_bar'],
+    truthTable: [
+      { inputs: [true, false], outputs: [false, true] },
+      { inputs: [true, true], outputs: [true, false] },
+      { inputs: [false, true], outputs: [true, false] },
+      { inputs: [false, false], outputs: [true, false] },
+      { inputs: [false, true], outputs: [false, true] }
+    ],
+    hint: 'D Latch 2개를 직렬로 배치합니다. 첫 번째 Master Latch에는 NOT CLK를 Enable로 넣고, 두 번째 Slave Latch에는 CLK를 Enable로 넣습니다. Master의 Q를 Slave의 D에 연결하면 CLK 상승 에지에서만 값이 출력으로 전달됩니다.'
+  },
+  {
     id: 'mission-decoder',
-    title: '미션 10: Instruction Decoder 제작',
+    title: '미션 11: Instruction Decoder 제작',
     description: '2비트 명령어 OP 코드를 해독하여 각 연산 장치를 제어할 LOAD, ADD, JUMP 신호를 만드세요. OP=00 이면 LOAD, OP=10 이면 ADD, OP=01 이면 JUMP를 출력하게 설계합니다.',
     targetTabId: 'sub-decoder',
     inputsRequired: ['OP0', 'OP1'],
@@ -735,7 +921,7 @@ export const MISSIONS: Mission[] = [
   },
   {
     id: 'mission-alu-1bit',
-    title: '미션 11: 1-Bit ALU 연산 장치 제작',
+    title: '미션 12: 1-Bit ALU 연산 장치 제작',
     description: '입력 A, B와 2비트 제어 신호 Op0, Op1을 조합해 Op=00 일 때 AND, Op=01 일 때 OR, Op=10 일 때 덧셈(HA Sum)을 수행하는 1비트 ALU를 만드세요.',
     targetTabId: 'sub-alu-1bit',
     inputsRequired: ['A', 'B', 'Op0', 'Op1'],
@@ -751,8 +937,23 @@ export const MISSIONS: Mission[] = [
     hint: 'AND, OR 게이트 및 Half Adder를 배치하여 A와 B의 연산 결과를 구합니다. 그 다음 2-to-1 MUX 2개를 엮어, Op0 신호로 AND/OR를 먼저 고르고 그 출력을 다시 Op1 신호로 HA Sum 결과와 비교하여 선택하게 하면 연산 장치가 완성됩니다.'
   },
   {
+    id: 'mission-alu-4bit',
+    title: '미션 13: 4-Bit ALU 연산 장치 제작',
+    description: '4비트 입력 A, B와 2비트 제어 신호 Op를 받아 Op=00 AND, Op=01 OR, Op=10 ADD, Op=11 SUB를 수행하는 4비트 ALU를 만드세요. 비트 순서는 A0/B0/R0가 LSB입니다.',
+    targetTabId: 'sub-alu-4bit',
+    inputsRequired: ['A0', 'A1', 'A2', 'A3', 'B0', 'B1', 'B2', 'B3', 'Op0', 'Op1'],
+    outputsRequired: ['R0', 'R1', 'R2', 'R3', 'Carry'],
+    truthTable: [
+      { inputs: [true, false, true, false, true, true, false, false, false, false], outputs: [true, false, false, false, false] },
+      { inputs: [true, false, true, false, true, true, false, false, true, false], outputs: [true, true, true, false, false] },
+      { inputs: [true, true, false, false, true, false, true, false, false, true], outputs: [false, false, false, true, false] },
+      { inputs: [true, false, true, false, true, true, false, false, true, true], outputs: [false, true, false, false, true] }
+    ],
+    hint: '각 비트마다 AND, OR, 산술 결과를 병렬로 만든 뒤 MUX 2단으로 선택하세요. ADD/SUB 산술 경로는 Full Adder 4개를 ripple-carry로 연결합니다. SUB는 B를 XOR(SUB)로 반전하고 첫 Carry-in에 SUB 신호를 넣어 A + NOT B + 1을 만듭니다.'
+  },
+  {
     id: 'mission-register-4bit',
-    title: '미션 12: 4-Bit Register 메모리 제작',
+    title: '미션 14: 4-Bit Register 메모리 제작',
     description: '4비트 데이터 입력을 클록 CLK의 HIGH 활성화 순간에 맞춰 동기화해 저장하는 4비트 레지스터를 만드세요.',
     targetTabId: 'sub-register-4bit',
     inputsRequired: ['D0', 'D1', 'D2', 'D3', 'CLK'],
@@ -766,7 +967,7 @@ export const MISSIONS: Mission[] = [
   },
   {
     id: 'mission-pc-4bit',
-    title: '미션 13: 4-Bit Program Counter 제작',
+    title: '미션 15: 4-Bit Program Counter 제작',
     description: 'Reset 신호가 들어오면 0으로 초기화되고, CLK이 뛸 때마다 카운트 값을 1씩 증가시키는 4비트 PC의 루프 회로를 만드세요.',
     targetTabId: 'sub-pc-4bit',
     inputsRequired: ['Reset', 'CLK'],
@@ -783,7 +984,7 @@ export const MISSIONS: Mission[] = [
   },
   {
     id: 'mission-cpu-4bit',
-    title: '미션 14: 4-Bit CPU 데이터패스 완성',
+    title: '미션 16: 4-Bit CPU 데이터패스 완성',
     description: 'PC, Instruction Decoder, Register, ALU를 한데 통합하여 명령어 루프를 주기적으로 수행하는 대망의 4비트 CPU 회로를 완성하세요.',
     targetTabId: 'sub-cpu-4bit',
     inputsRequired: ['Reset', 'CLK'],
@@ -815,6 +1016,8 @@ function sanitizeNode(node: Node): Node {
     clockInterval: node.clockInterval,
     clockState: node.clockState,
     label: node.label,
+    busValue: node.busValue,
+    busWidth: node.busWidth,
   };
 }
 
@@ -1082,12 +1285,12 @@ export function useCircuitState() {
 
   // Simulation Controls
   const [isSimulating, setIsSimulating] = useState<boolean>(true);
-  const [debugQueue, setDebugQueue] = useState<{ pinId: string; value: boolean }[]>([]);
+  const [debugQueue, setDebugQueue] = useState<SignalUpdate[]>([]);
   const [stepCount, setStepCount] = useState<number>(0);
   const [oscillationError, setOscillationError] = useState<boolean>(false);
 
   // Wire Drawing States
-  const [wireDraft, setWireDraft] = useState<{ fromPinId: string; currentX: number; currentY: number } | null>(null);
+  const [wireDraft, setWireDraft] = useState<{ fromPinId: string; currentX: number; currentY: number; bitWidth?: 1 | 8 | 16 | 32 } | null>(null);
 
   // Active Tab State Helper
   const activeTab = (() => {
@@ -1180,7 +1383,7 @@ export function useCircuitState() {
   }, [tabs, customGates]);
 
   // Cloud Circuits State & Actions
-  const [cloudCircuits, setCloudCircuits] = useState<{ id: string; name: string; state: any; updatedAt: string }[]>([]);
+  const [cloudCircuits, setCloudCircuits] = useState<CloudCircuit[]>([]);
 
   const fetchCloudCircuits = useCallback(async () => {
     const token = localStorage.getItem('authToken');
@@ -1240,7 +1443,7 @@ export function useCircuitState() {
     }
   }, [tabs, customGates, activeTabId, fetchCloudCircuits]);
 
-  const loadCircuitFromCloud = useCallback((circuit: { id: string; name: string; state: any }) => {
+  const loadCircuitFromCloud = useCallback((circuit: CloudCircuit) => {
     if (!circuit.state || !circuit.state.tabs || !circuit.state.customGates) {
       alert('Invalid circuit data loaded from cloud.');
       return;
@@ -1387,6 +1590,22 @@ export function useCircuitState() {
       inputCount = 1;
       outputCount = 0;
       name = 'OUT PORT';
+    } else if (type === 'BUS_INPUT') {
+      inputCount = 0;
+      outputCount = 1;
+      name = 'BUS IN';
+    } else if (type === 'BUS_OUTPUT') {
+      inputCount = 1;
+      outputCount = 0;
+      name = 'BUS OUT';
+    } else if (type === 'BUS_NOT') {
+      inputCount = 1;
+      outputCount = 1;
+      name = 'BUS NOT';
+    } else if (type.startsWith('BUS_')) {
+      inputCount = 2;
+      outputCount = 1;
+      name = type.replace('BUS_', 'BUS ');
     } else if (type === 'CUSTOM' && customGateId && activeCustomGates[customGateId]) {
       const def = activeCustomGates[customGateId];
       name = def.name;
@@ -1400,6 +1619,8 @@ export function useCircuitState() {
       type: 'input',
       index: i,
       value: false,
+      busValue: type.startsWith('BUS_') ? 0 : undefined,
+      busWidth: type.startsWith('BUS_') ? 8 : undefined,
     }));
 
     const outputs: Pin[] = Array.from({ length: outputCount }, (_, i) => ({
@@ -1408,6 +1629,8 @@ export function useCircuitState() {
       type: 'output',
       index: i,
       value: false,
+      busValue: type.startsWith('BUS_') ? 0 : undefined,
+      busWidth: type.startsWith('BUS_') ? 8 : undefined,
     }));
 
     const newNode: Node = {
@@ -1421,6 +1644,8 @@ export function useCircuitState() {
       customGateId,
       clockInterval: type === 'CLOCK' ? 1000 : undefined,
       clockState: type === 'CLOCK' ? false : undefined,
+      busValue: type === 'BUS_INPUT' ? 0 : undefined,
+      busWidth: type.startsWith('BUS_') ? 8 : undefined,
     };
 
     updateActiveCircuitState((prev) => ({
@@ -1506,20 +1731,24 @@ export function useCircuitState() {
 
     const newNodeId = `${copiedNode.type.toLowerCase()}-${Date.now()}-${Math.random().toString(36).substr(2, 4)}`;
 
-    const inputs: Pin[] = copiedNode.inputs.map((_, i) => ({
+    const inputs: Pin[] = copiedNode.inputs.map((pin, i) => ({
       id: `${newNodeId}-in-${i}`,
       nodeId: newNodeId,
       type: 'input',
       index: i,
       value: false,
+      busValue: pin.busValue,
+      busWidth: pin.busWidth,
     }));
 
-    const outputs: Pin[] = copiedNode.outputs.map((_, i) => ({
+    const outputs: Pin[] = copiedNode.outputs.map((pin, i) => ({
       id: `${newNodeId}-out-${i}`,
       nodeId: newNodeId,
       type: 'output',
       index: i,
       value: false,
+      busValue: pin.busValue,
+      busWidth: pin.busWidth,
     }));
 
     const newNode: Node = {
@@ -1579,7 +1808,7 @@ export function useCircuitState() {
   }, [undo, redo, copySelectedNode, pasteNode, selectedNodeId, deleteNode]);
 
   // Connect Pins
-  const connectPins = useCallback((fromPinId: string, toPinId: string) => {
+  const connectPins = useCallback((fromPinId: string, toPinId: string, bitWidth: 1 | 8 | 16 | 32 = 1) => {
     saveHistory();
     updateActiveCircuitState((prev) => {
       // Find source and target pins to validate they exist and are correct types
@@ -1601,10 +1830,12 @@ export function useCircuitState() {
       // Prevent multiple connections to the same input pin
       const filteredConnections = prev.connections.filter((c) => c.toPinId !== toPinId);
 
+      const resolvedBitWidth = fromPin.busWidth || toPin.busWidth || bitWidth;
       const newConn: Connection = {
         id: `conn-${Date.now()}-${Math.random().toString(36).substr(2, 4)}`,
         fromPinId,
         toPinId,
+        bitWidth: resolvedBitWidth,
       };
 
       return {
@@ -1664,6 +1895,57 @@ export function useCircuitState() {
     updateActiveCircuitState((prev) => ({
       nodes: prev.nodes.map((n) => (n.id === nodeId ? { ...n, clockInterval: interval } : n)),
       connections: prev.connections,
+    }));
+  }, [updateActiveCircuitState]);
+
+  const setBusValue = useCallback((nodeId: string, busValue: number) => {
+    updateActiveCircuitState((prev) => ({
+      nodes: prev.nodes.map((n) => {
+        if (n.id !== nodeId) return n;
+        const width = n.busWidth || 8;
+        const mask = width === 32 ? 0xffffffff : (1 << width) - 1;
+        const nextBusValue = busValue & mask;
+        return {
+          ...n,
+          busValue: nextBusValue,
+          outputs: n.outputs.map((pin) => ({
+            ...pin,
+            value: nextBusValue !== 0,
+            busValue: nextBusValue,
+            busWidth: width,
+          })),
+        };
+      }),
+      connections: prev.connections,
+    }));
+  }, [updateActiveCircuitState]);
+
+  const setBusWidth = useCallback((nodeId: string, busWidth: 8 | 16 | 32) => {
+    updateActiveCircuitState((prev) => ({
+      nodes: prev.nodes.map((n) => {
+        if (n.id !== nodeId) return n;
+        const mask = busWidth === 32 ? 0xffffffff : (1 << busWidth) - 1;
+        const nextBusValue = (n.busValue || 0) & mask;
+        return {
+          ...n,
+          busWidth,
+          busValue: n.type === 'BUS_INPUT' ? nextBusValue : n.busValue,
+          inputs: n.inputs.map((pin) => ({ ...pin, busWidth })),
+          outputs: n.outputs.map((pin) => ({
+            ...pin,
+            busWidth,
+            busValue: pin.busValue === undefined ? undefined : pin.busValue & mask,
+          })),
+        };
+      }),
+      connections: prev.connections.map((conn) => {
+        const node = prev.nodes.find((n) => n.id === nodeId);
+        if (!node) return conn;
+        const pinIds = new Set([...node.inputs, ...node.outputs].map((pin) => pin.id));
+        return pinIds.has(conn.fromPinId) || pinIds.has(conn.toPinId)
+          ? { ...conn, bitWidth: busWidth }
+          : conn;
+      }),
     }));
   }, [updateActiveCircuitState]);
 
@@ -1762,7 +2044,7 @@ export function useCircuitState() {
       } else {
         alert('Invalid circuit file format.');
       }
-    } catch (e) {
+    } catch {
       alert('Failed to parse circuit JSON file.');
     }
   }, [saveHistory]);
@@ -1812,7 +2094,7 @@ export function useCircuitState() {
     };
 
     loadShared();
-  }, [location.search]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [location.search]);
 
   // SIMULATION EXECUTION LOOP (REAL-TIME STATE PROPAGATION)
   useEffect(() => {
@@ -1848,13 +2130,13 @@ export function useCircuitState() {
       // Regular full simulation run to stabilize values in the active circuit
       updateActiveCircuitState((prevCircuit) => {
         // Collect all outputs and evaluate downstream values
-        const queue: { pinId: string; value: boolean }[] = [];
+        const queue: SignalUpdate[] = [];
         
         // Add sources (Switches, Clocks, buttons) outputs to queue
         prevCircuit.nodes.forEach((n) => {
-          if (n.type === 'SWITCH' || n.type === 'BUTTON' || n.type === 'CLOCK' || n.type === 'PORT_IN') {
+          if (n.type === 'SWITCH' || n.type === 'BUTTON' || n.type === 'CLOCK' || n.type === 'PORT_IN' || n.type === 'BUS_INPUT') {
             if (n.outputs[0]) {
-              queue.push({ pinId: n.outputs[0].id, value: n.outputs[0].value });
+              queue.push({ pinId: n.outputs[0].id, value: n.outputs[0].value, busValue: n.outputs[0].busValue });
             }
           }
         });
@@ -1988,7 +2270,7 @@ export function useCircuitState() {
         }
       });
 
-      const setupQueue: { pinId: string; value: boolean }[] = [];
+      const setupQueue: SignalUpdate[] = [];
       runningCircuitState.nodes.forEach((n) => {
         n.outputs.forEach((pin) => {
           let val = pin.value;
@@ -1996,7 +2278,7 @@ export function useCircuitState() {
             val = true;
             pin.value = true;
           }
-          setupQueue.push({ pinId: pin.id, value: val });
+          setupQueue.push({ pinId: pin.id, value: val, busValue: pin.busValue });
         });
       });
 
@@ -2016,7 +2298,7 @@ export function useCircuitState() {
       });
 
       // Prepare propagation queue
-      const queue: { pinId: string; value: boolean }[] = [];
+      const queue: SignalUpdate[] = [];
       if (rowIndex === 0) {
         // On the first step, queue ALL outputs of ALL nodes to force initial propagation of all gates
         runningCircuitState.nodes.forEach((n) => {
@@ -2026,16 +2308,16 @@ export function useCircuitState() {
               val = true;
               pin.value = true;
             }
-            queue.push({ pinId: pin.id, value: val });
+            queue.push({ pinId: pin.id, value: val, busValue: pin.busValue });
           });
         });
       } else {
         runningCircuitState.nodes.forEach((n) => {
-          if (n.type === 'PORT_IN' || n.type === 'SWITCH' || n.type === 'BUTTON' || n.type === 'CLOCK') {
+          if (n.type === 'PORT_IN' || n.type === 'SWITCH' || n.type === 'BUTTON' || n.type === 'CLOCK' || n.type === 'BUS_INPUT') {
             if (n.outputs[0]) {
               const val = n.type === 'SWITCH' ? true : n.outputs[0].value;
               n.outputs[0].value = val;
-              queue.push({ pinId: n.outputs[0].id, value: val });
+              queue.push({ pinId: n.outputs[0].id, value: val, busValue: n.outputs[0].busValue });
             }
           }
         });
@@ -2206,7 +2488,7 @@ export function useCircuitState() {
 
   // STEP-BY-STEP PROPAGATION ACTION
   const stepSimulation = useCallback(() => {
-    let activeQueue = [...debugQueue];
+    const activeQueue = [...debugQueue];
     let nextNodes = [...nodes];
     const isNewCycle = activeQueue.length === 0;
 
@@ -2261,9 +2543,9 @@ export function useCircuitState() {
 
       // Populate queue with updated clock outputs and existing switch/button outputs
       nextNodes.forEach((n) => {
-        if (n.type === 'SWITCH' || n.type === 'BUTTON' || n.type === 'CLOCK' || n.type === 'PORT_IN') {
+        if (n.type === 'SWITCH' || n.type === 'BUTTON' || n.type === 'CLOCK' || n.type === 'PORT_IN' || n.type === 'BUS_INPUT') {
           if (n.outputs[0]) {
-            activeQueue.push({ pinId: n.outputs[0].id, value: n.outputs[0].value });
+            activeQueue.push({ pinId: n.outputs[0].id, value: n.outputs[0].value, busValue: n.outputs[0].busValue });
           }
         }
       });
@@ -2342,6 +2624,8 @@ export function useCircuitState() {
     setButtonState,
     setNodeLabel,
     setClockInterval,
+    setBusValue,
+    setBusWidth,
     createSubCircuitTab,
     deleteSubCircuitTab,
     convertTabToCustomGate,

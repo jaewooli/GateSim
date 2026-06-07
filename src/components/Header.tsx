@@ -82,6 +82,10 @@ export const Header: React.FC<HeaderProps> = ({ circuit, onOpenCustomGateModal }
     URL.revokeObjectURL(url);
   };
 
+  const handleCanvasExport = (format: 'svg' | 'png') => {
+    window.dispatchEvent(new CustomEvent('gatesim:export-canvas', { detail: format }));
+  };
+
   return (
     <div className="header-wrapper" style={{ display: 'flex', flexDirection: 'column', width: '100%' }}>
       <div className="header-container" style={{ borderBottom: appMode === 'sandbox' ? 'none' : '2px solid var(--border-color)' }}>
@@ -299,6 +303,18 @@ export const Header: React.FC<HeaderProps> = ({ circuit, onOpenCustomGateModal }
                       style={{ width: '100%', textAlign: 'left', padding: '8px 12px', borderRadius: '6px', fontSize: '12px' }}
                     >
                       ⬇️ Export JSON
+                    </button>
+                    <button
+                      onClick={() => { handleCanvasExport('svg'); setIsFileOpen(false); }}
+                      style={{ width: '100%', textAlign: 'left', padding: '8px 12px', borderRadius: '6px', fontSize: '12px' }}
+                    >
+                      📐 Export SVG
+                    </button>
+                    <button
+                      onClick={() => { handleCanvasExport('png'); setIsFileOpen(false); }}
+                      style={{ width: '100%', textAlign: 'left', padding: '8px 12px', borderRadius: '6px', fontSize: '12px' }}
+                    >
+                      📸 Export PNG
                     </button>
                     <button
                       onClick={() => { handleImportClick(); setIsFileOpen(false); }}

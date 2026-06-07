@@ -1,4 +1,4 @@
-import React, { useState, useRef } from 'react';
+import React, { useEffect, useState, useRef } from 'react';
 import type { Node, Pin, NodeType, SubCircuitDefinition } from '../types';
 import type { CircuitHook } from '../hooks/useCircuitState';
 import { sortSubCircuitPorts } from '../utils/simulation';
@@ -9,6 +9,7 @@ export const GATE_HEIGHT = 70;
 export function getNodeWidth(node: Node) {
   if (node.width !== undefined) return node.width;
   if (node.type === 'CUSTOM') return 145; // Make custom gates wider by default (from 110)
+  if (node.type.startsWith('BUS_')) return 130;
   return GATE_WIDTH;
 }
 
@@ -90,6 +91,7 @@ export const Canvas: React.FC<CanvasProps> = ({ circuit }) => {
 
   const svgRef = useRef<SVGSVGElement>(null);
   const [canvasMode, setCanvasMode] = useState<'select' | 'pan'>('select');
+  const [wireBitWidth, setWireBitWidth] = useState<1 | 8 | 16 | 32>(1);
   const [isPanning, setIsPanning] = useState(false);
   const [panStart, setPanStart] = useState({ x: 0, y: 0 });
   const [draggedNodes, setDraggedNodes] = useState<{ id: string; dragOffsetX: number; dragOffsetY: number }[]>([]);
@@ -100,6 +102,123 @@ export const Canvas: React.FC<CanvasProps> = ({ circuit }) => {
   // Touch tracking refs for mobile/tablet zoom and pan
   const lastTouchDistance = useRef<number | null>(null);
   const lastTouchCenter = useRef<{ x: number; y: number } | null>(null);
+
+  const buildExportSvgMarkup = () => {
+    if (!svgRef.current) return null;
+
+    const sourceSvg = svgRef.current;
+    const clone = sourceSvg.cloneNode(true) as SVGSVGElement;
+    const rect = sourceSvg.getBoundingClientRect();
+    const width = Math.max(1, Math.round(rect.width));
+    const height = Math.max(1, Math.round(rect.height));
+    const computed = getComputedStyle(document.body);
+    const cssVar = (name: string) => computed.getPropertyValue(name).trim();
+
+    clone.setAttribute('xmlns', 'http://www.w3.org/2000/svg');
+    clone.setAttribute('width', String(width));
+    clone.setAttribute('height', String(height));
+    clone.setAttribute('viewBox', `0 0 ${width} ${height}`);
+    clone.setAttribute(
+      'style',
+      [
+        `--primary-bg: ${cssVar('--primary-bg')}`,
+        `--secondary-bg: ${cssVar('--secondary-bg')}`,
+        `--accent: ${cssVar('--accent')}`,
+        `--accent-hover: ${cssVar('--accent-hover')}`,
+        `--accent-light: ${cssVar('--accent-light')}`,
+        `--text-primary: ${cssVar('--text-primary')}`,
+        `--text-muted: ${cssVar('--text-muted')}`,
+        `--border-color: ${cssVar('--border-color')}`,
+        `--logic-low: ${cssVar('--logic-low')}`,
+        `--logic-high: ${cssVar('--logic-high')}`,
+        `font-family: ${cssVar('--sans') || 'system-ui, sans-serif'}`,
+        `background-color: ${cssVar('--primary-bg')}`,
+      ].join('; ')
+    );
+
+    const style = document.createElementNS('http://www.w3.org/2000/svg', 'style');
+    style.textContent = `
+      .canvas-grid { fill: var(--primary-bg); }
+      .gate-body { fill: var(--secondary-bg); stroke: var(--border-color); stroke-width: 2.5; }
+      .gate-body.selected { stroke: var(--text-primary); stroke-width: 3.5; }
+      .gate-label { font-family: system-ui, sans-serif; font-size: 13px; font-weight: 700; fill: var(--text-primary); }
+      .gate-subtext { font-family: ui-monospace, monospace; font-size: 10px; fill: var(--text-muted); }
+      .pin-circle { fill: var(--secondary-bg); stroke: var(--border-color); stroke-width: 2; }
+      .pin-circle.connected-high { fill: var(--logic-high); stroke: var(--logic-high); }
+      .pin-circle.connected-low { fill: var(--logic-low); stroke: var(--border-color); }
+      .wire-path { fill: none; stroke-width: 3; }
+      .wire-path.high { stroke: var(--logic-high); stroke-width: 3.5; }
+      .wire-path.low { stroke: var(--logic-low); stroke-width: 3; }
+      .wire-path-hover-box, .wire-delete-group, .wire-particles { display: none; }
+      .wire-draft-path { fill: none; stroke: var(--accent); stroke-width: 2; stroke-dasharray: 6 6; }
+      text { dominant-baseline: auto; }
+    `;
+    clone.insertBefore(style, clone.firstChild);
+
+    return new XMLSerializer().serializeToString(clone);
+  };
+
+  const downloadBlob = (blob: Blob, extension: 'svg' | 'png') => {
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = `gatesim-${activeTab.name.toLowerCase().replace(/[^a-z0-9]+/g, '-')}-${new Date().toISOString().slice(0, 10)}.${extension}`;
+    link.click();
+    URL.revokeObjectURL(url);
+  };
+
+  const exportVisibleCanvas = async (format: 'svg' | 'png') => {
+    const svgMarkup = buildExportSvgMarkup();
+    if (!svgMarkup) return;
+
+    if (format === 'svg') {
+      downloadBlob(new Blob([svgMarkup], { type: 'image/svg+xml;charset=utf-8' }), 'svg');
+      return;
+    }
+
+    const sourceSvg = svgRef.current;
+    if (!sourceSvg) return;
+
+    const rect = sourceSvg.getBoundingClientRect();
+    const width = Math.max(1, Math.round(rect.width));
+    const height = Math.max(1, Math.round(rect.height));
+    const svgBlob = new Blob([svgMarkup], { type: 'image/svg+xml;charset=utf-8' });
+    const url = URL.createObjectURL(svgBlob);
+    const img = new Image();
+
+    img.onload = () => {
+      const canvas = document.createElement('canvas');
+      canvas.width = width;
+      canvas.height = height;
+      const ctx = canvas.getContext('2d');
+      if (!ctx) {
+        URL.revokeObjectURL(url);
+        return;
+      }
+      ctx.drawImage(img, 0, 0, width, height);
+      canvas.toBlob((blob) => {
+        URL.revokeObjectURL(url);
+        if (blob) downloadBlob(blob, 'png');
+      }, 'image/png');
+    };
+
+    img.onerror = () => {
+      URL.revokeObjectURL(url);
+      alert('Could not export PNG from the current canvas.');
+    };
+
+    img.src = url;
+  };
+
+  useEffect(() => {
+    const handleExportRequest = (event: Event) => {
+      const format = (event as CustomEvent<'svg' | 'png'>).detail;
+      void exportVisibleCanvas(format);
+    };
+
+    window.addEventListener('gatesim:export-canvas', handleExportRequest);
+    return () => window.removeEventListener('gatesim:export-canvas', handleExportRequest);
+  });
 
   // Convert screen coordinates to canvas grid coordinates
   const getCanvasCoords = (clientX: number, clientY: number) => {
@@ -265,6 +384,7 @@ export const Canvas: React.FC<CanvasProps> = ({ circuit }) => {
       fromPinId: pin.id,
       currentX: pinPos.x,
       currentY: pinPos.y,
+      bitWidth: pin.busWidth || wireBitWidth,
     });
   };
 
@@ -360,7 +480,7 @@ export const Canvas: React.FC<CanvasProps> = ({ circuit }) => {
             inPinId = wireDraft.fromPinId;
           }
           if (outPinId && inPinId) {
-            connectPins(outPinId, inPinId);
+            connectPins(outPinId, inPinId, wireDraft.bitWidth);
           }
         }
       }
@@ -421,6 +541,7 @@ export const Canvas: React.FC<CanvasProps> = ({ circuit }) => {
       fromPinId: pin.id,
       currentX: pinPos.x,
       currentY: pinPos.y,
+      bitWidth: pin.busWidth || wireBitWidth,
     });
   };
 
@@ -449,7 +570,7 @@ export const Canvas: React.FC<CanvasProps> = ({ circuit }) => {
       }
 
       if (outPinId && inPinId) {
-        connectPins(outPinId, inPinId);
+        connectPins(outPinId, inPinId, wireDraft.bitWidth);
       }
     }
     setWireDraft(null);
@@ -599,7 +720,10 @@ export const Canvas: React.FC<CanvasProps> = ({ circuit }) => {
             const cy2 = toPos.y;
 
             const d = `M ${fromPos.x} ${fromPos.y} C ${cx1} ${cy1}, ${cx2} ${cy2}, ${toPos.x} ${toPos.y}`;
-            const wireValue = fromNode.outputs.find((p) => p.id === conn.fromPinId)?.value ?? false;
+            const fromPin = fromNode.outputs.find((p) => p.id === conn.fromPinId);
+            const wireValue = fromPin?.busValue !== undefined ? fromPin.busValue !== 0 : fromPin?.value ?? false;
+            const bitWidth = conn.bitWidth || 1;
+            const isBus = bitWidth > 1;
 
             return (
               <g 
@@ -621,8 +745,19 @@ export const Canvas: React.FC<CanvasProps> = ({ circuit }) => {
                 {/* Visual Wire */}
                 <path
                   d={d}
-                  className={`wire-path ${wireValue ? 'high' : 'low'}`}
+                  className={`wire-path ${wireValue ? 'high' : 'low'} ${isBus ? 'bus' : ''}`}
+                  style={{
+                    strokeWidth: isBus ? 7 : undefined,
+                  }}
                 />
+                {isBus && (
+                  <g transform={`translate(${0.125 * fromPos.x + 0.375 * cx1 + 0.375 * cx2 + 0.125 * toPos.x}, ${0.125 * fromPos.y + 0.375 * cy1 + 0.375 * cy2 + 0.125 * toPos.y})`}>
+                    <rect x="-17" y="-10" width="34" height="20" rx="5" fill="var(--secondary-bg)" stroke="var(--border-color)" strokeWidth="1.5" />
+                    <text textAnchor="middle" dy="0.35em" className="gate-subtext" style={{ fontWeight: 800 }}>
+                      {bitWidth}b
+                    </text>
+                  </g>
+                )}
                 {/* Signal Flow Particles */}
                 {wireValue && (
                   <path
@@ -678,7 +813,20 @@ export const Canvas: React.FC<CanvasProps> = ({ circuit }) => {
 
             const d = `M ${fromX} ${fromY} C ${cx1} ${cy1}, ${cx2} ${cy2}, ${toX} ${toY}`;
 
-            return <path d={d} className="wire-draft-path" />;
+            return (
+              <g>
+                <path
+                  d={d}
+                  className="wire-draft-path"
+                  style={{ strokeWidth: (wireDraft.bitWidth || 1) > 1 ? 7 : undefined }}
+                />
+                {(wireDraft.bitWidth || 1) > 1 && (
+                  <text x={toX + 12} y={toY - 12} className="gate-subtext" style={{ fontWeight: 800 }}>
+                    {wireDraft.bitWidth}b bus
+                  </text>
+                )}
+              </g>
+            );
           })()}
 
           {/* 3. RENDER GATE NODES */}
@@ -809,6 +957,36 @@ export const Canvas: React.FC<CanvasProps> = ({ circuit }) => {
                   );
                 })()}
 
+                {node.type === 'BUS_INPUT' && (() => {
+                  const widthBits = node.busWidth || 8;
+                  const busValue = node.outputs[0]?.busValue ?? node.busValue ?? 0;
+                  return (
+                    <g transform={`translate(${node.x + width / 2}, ${node.y + height / 2 + 9})`}>
+                      <text className="gate-subtext" textAnchor="middle" style={{ fontSize: '14px', fontWeight: 900 }}>
+                        0x{busValue.toString(16).toUpperCase().padStart(Math.ceil(widthBits / 4), '0')}
+                      </text>
+                      <text className="gate-subtext" textAnchor="middle" y="18">
+                        {widthBits}-bit source
+                      </text>
+                    </g>
+                  );
+                })()}
+
+                {node.type === 'BUS_OUTPUT' && (() => {
+                  const widthBits = node.busWidth || node.inputs[0]?.busWidth || 8;
+                  const busValue = node.inputs[0]?.busValue ?? 0;
+                  return (
+                    <g transform={`translate(${node.x + width / 2}, ${node.y + height / 2 + 9})`}>
+                      <text className="gate-subtext" textAnchor="middle" style={{ fontSize: '14px', fontWeight: 900 }}>
+                        0x{busValue.toString(16).toUpperCase().padStart(Math.ceil(widthBits / 4), '0')}
+                      </text>
+                      <text className="gate-subtext" textAnchor="middle" y="18">
+                        {widthBits}-bit sink
+                      </text>
+                    </g>
+                  );
+                })()}
+
                 {node.type === 'LED' && (() => {
                   const val = node.inputs[0]?.value ?? false;
                   return (
@@ -888,6 +1066,14 @@ export const Canvas: React.FC<CanvasProps> = ({ circuit }) => {
                   </g>
                 )}
 
+                {node.type.startsWith('BUS_') && !['BUS_INPUT', 'BUS_OUTPUT'].includes(node.type) && (
+                  <g transform={`translate(${node.x + width / 2}, ${node.y + height - 18})`}>
+                    <text className="gate-subtext" textAnchor="middle">
+                      {node.type.replace('BUS_', '')} {node.busWidth || 8}-bit
+                    </text>
+                  </g>
+                )}
+
                 {/* Resize Handle (visible when selected) */}
                 {isSelected && (
                   <g
@@ -931,7 +1117,7 @@ export const Canvas: React.FC<CanvasProps> = ({ circuit }) => {
                         onTouchStart={(e) => handlePinTouchStart(e, pin, node)}
                         data-pin-id={pin.id}
                       >
-                        <title>{`Input Pin ${pin.index + 1}: ${pin.value ? '1' : '0'}`}</title>
+                          <title>{`Input Pin ${pin.index + 1}: ${pin.busValue !== undefined ? `0x${pin.busValue.toString(16).toUpperCase()}` : pin.value ? '1' : '0'}`}</title>
                       </circle>
                       {showPinLabels && label && (
                         <text
@@ -971,7 +1157,7 @@ export const Canvas: React.FC<CanvasProps> = ({ circuit }) => {
                         onTouchStart={(e) => handlePinTouchStart(e, pin, node)}
                         data-pin-id={pin.id}
                       >
-                        <title>{`Output Pin ${pin.index + 1}: ${pin.value ? '1' : '0'}`}</title>
+                          <title>{`Output Pin ${pin.index + 1}: ${pin.busValue !== undefined ? `0x${pin.busValue.toString(16).toUpperCase()}` : pin.value ? '1' : '0'}`}</title>
                       </circle>
                       {showPinLabels && label && (
                         <text
@@ -1038,6 +1224,29 @@ export const Canvas: React.FC<CanvasProps> = ({ circuit }) => {
           🖐️ Pan
         </button>
         
+        <div style={{ width: '1px', height: '16px', backgroundColor: 'var(--border-color)', margin: '0 4px' }} />
+
+        <select
+          value={wireBitWidth}
+          onChange={(e) => setWireBitWidth(Number(e.target.value) as 1 | 8 | 16 | 32)}
+          title="Wire width"
+          style={{
+            height: '31px',
+            border: '1px solid var(--border-color)',
+            borderRadius: '8px',
+            backgroundColor: 'var(--secondary-bg)',
+            color: 'var(--text-primary)',
+            fontSize: '12px',
+            fontWeight: 800,
+            padding: '0 8px',
+          }}
+        >
+          <option value={1}>1b</option>
+          <option value={8}>8b</option>
+          <option value={16}>16b</option>
+          <option value={32}>32b</option>
+        </select>
+
         <div style={{ width: '1px', height: '16px', backgroundColor: 'var(--border-color)', margin: '0 4px' }} />
 
         <button className="canvas-controls-btn" onClick={handleZoomIn} title="Zoom In">

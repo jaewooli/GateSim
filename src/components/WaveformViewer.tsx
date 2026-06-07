@@ -148,7 +148,7 @@ export const WaveformViewer: React.FC<WaveformViewerProps> = ({ circuit }) => {
     vcd += `$enddefinitions $end\n`;
     
     // Export data timestamps
-    let lastVals: Record<string, boolean> = {};
+    const lastVals: Record<string, boolean> = {};
     for (let i = 0; i < maxHistoryLength; i++) {
       let timestampWritten = false;
       

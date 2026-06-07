@@ -12,6 +12,14 @@ export type NodeType =
   | 'LED'
   | 'PORT_IN'
   | 'PORT_OUT'
+  | 'BUS_INPUT'
+  | 'BUS_OUTPUT'
+  | 'BUS_AND'
+  | 'BUS_OR'
+  | 'BUS_XOR'
+  | 'BUS_NOT'
+  | 'BUS_ADD'
+  | 'BUS_SUB'
   | 'CUSTOM';
 
 export interface Pin {
@@ -20,6 +28,8 @@ export interface Pin {
   type: 'input' | 'output';
   index: number;     // Index of the pin on the node
   value: boolean;    // Logical value (true/high, false/low)
+  busValue?: number; // Numeric value for bus-capable pins
+  busWidth?: 8 | 16 | 32;
 }
 
 export interface Node {
@@ -40,12 +50,25 @@ export interface Node {
   subState?: CircuitState; // Internal simulation state for CUSTOM gates
   prevClk?: boolean;
   latchedOutputs?: boolean[];
+  busValue?: number;
+  busWidth?: 8 | 16 | 32;
 }
 
 export interface Connection {
   id: string;
   fromPinId: string; // Must be an output pin
   toPinId: string;   // Must be an input pin
+  bitWidth?: 1 | 8 | 16 | 32; // Visual bus width; omitted means single-bit wire
+}
+
+export interface BusWire extends Connection {
+  bitWidth: 8 | 16 | 32;
+}
+
+export interface SignalUpdate {
+  pinId: string;
+  value: boolean;
+  busValue?: number;
 }
 
 export interface SubCircuitDefinition {

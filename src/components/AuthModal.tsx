@@ -69,8 +69,8 @@ export const AuthModal: React.FC<AuthModalProps> = ({
         onLoginSuccess(data.token, data.username);
         onClose();
       }
-    } catch (err: any) {
-      setError(err.message || 'Connection error');
+    } catch (err: unknown) {
+      setError(err instanceof Error ? err.message : 'Connection error');
     } finally {
       setLoading(false);
     }

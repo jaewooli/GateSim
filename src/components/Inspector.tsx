@@ -29,6 +29,8 @@ export const Inspector: React.FC<InspectorProps> = ({ circuit }) => {
     deleteNode,
     setNodeLabel,
     setClockInterval,
+    setBusValue,
+    setBusWidth,
     activeCustomGates,
     probedNodeIds,
     toggleProbeNode,
@@ -53,6 +55,8 @@ export const Inspector: React.FC<InspectorProps> = ({ circuit }) => {
       case 'LED': return 'LED Indicator';
       case 'PORT_IN': return 'Sub-circuit Input';
       case 'PORT_OUT': return 'Sub-circuit Output';
+      case 'BUS_INPUT': return 'Bus Input';
+      case 'BUS_OUTPUT': return 'Bus Output';
       default: return `${n.type} Gate`;
     }
   };
@@ -318,6 +322,49 @@ export const Inspector: React.FC<InspectorProps> = ({ circuit }) => {
             />
             <div style={{ fontSize: '10px', color: 'var(--text-muted)', marginTop: '4px' }}>
               Adjust the frequency. Minimum value is 100ms (faster ticks).
+            </div>
+          </div>
+        )}
+
+        {node.type.startsWith('BUS_') && (
+          <div className="inspector-group">
+            <label className="inspector-label" htmlFor="bus-width">Bus Width</label>
+            <select
+              id="bus-width"
+              className="inspector-input"
+              value={node.busWidth || 8}
+              onChange={(e) => setBusWidth(node.id, Number(e.target.value) as 8 | 16 | 32)}
+            >
+              <option value={8}>8-bit</option>
+              <option value={16}>16-bit</option>
+              <option value={32}>32-bit</option>
+            </select>
+          </div>
+        )}
+
+        {node.type === 'BUS_INPUT' && (
+          <div className="inspector-group">
+            <label className="inspector-label" htmlFor="bus-value">Bus Value</label>
+            <input
+              id="bus-value"
+              type="number"
+              className="inspector-input"
+              value={node.busValue || 0}
+              onChange={(e) => setBusValue(node.id, Number(e.target.value) || 0)}
+              min="0"
+              max={node.busWidth === 32 ? 0xffffffff : (1 << (node.busWidth || 8)) - 1}
+            />
+            <div style={{ fontSize: '10px', color: 'var(--text-muted)', marginTop: '4px' }}>
+              Current hex: 0x{(node.busValue || 0).toString(16).toUpperCase()}
+            </div>
+          </div>
+        )}
+
+        {node.type === 'BUS_OUTPUT' && (
+          <div className="inspector-group" style={{ backgroundColor: 'var(--primary-bg)', padding: '16px', borderRadius: '16px', border: '1px solid var(--border-color)' }}>
+            <div style={{ fontSize: '12px', fontWeight: 800, marginBottom: '6px' }}>Bus Readout</div>
+            <div style={{ fontSize: '13px', color: 'var(--text-primary)', fontFamily: 'var(--mono)', fontWeight: 800 }}>
+              {(node.inputs[0]?.busValue ?? 0).toString(10)} / 0x{(node.inputs[0]?.busValue ?? 0).toString(16).toUpperCase()}
             </div>
           </div>
         )}

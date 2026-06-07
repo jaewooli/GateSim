@@ -127,6 +127,13 @@ const SVG_LED = (
   </svg>
 );
 
+const SVG_BUS = (
+  <svg viewBox="0 0 40 20" className="toolbox-item-icon">
+    <line x1="4" y1="10" x2="36" y2="10" stroke="#1A1A1A" strokeWidth="4" strokeLinecap="round" />
+    <text x="20" y="8" fontSize="7" fontWeight="bold" textAnchor="middle" fill="#B6E63A">BUS</text>
+  </svg>
+);
+
 export const Sidebar: React.FC<SidebarProps> = ({ circuit, onAddNode }) => {
   const {
     appMode,
@@ -411,6 +418,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ circuit, onAddNode }) => {
     { type: 'SWITCH', name: 'Toggle Switch', description: 'Manually toggles HIGH (1) or LOW (0)', icon: SVG_SWITCH },
     { type: 'BUTTON', name: 'Push Button', description: 'HIGH (1) only while pressed', icon: SVG_BUTTON },
     { type: 'CLOCK', name: 'Clock Gen', description: 'Toggles periodically at set interval', icon: SVG_CLOCK },
+    { type: 'BUS_INPUT', name: 'Bus Input', description: 'Numeric 8/16/32-bit bus source', icon: SVG_BUS },
   ];
 
   if (activeTabId !== 'main') {
@@ -425,10 +433,17 @@ export const Sidebar: React.FC<SidebarProps> = ({ circuit, onAddNode }) => {
     { type: 'CUSTOM', name: 'NOR Gate', description: 'Composite universal NOR gate', customGateId: 'sub-nor', icon: SVG_NOR },
     { type: 'CUSTOM', name: 'XOR Gate', description: 'Composite XOR gate', customGateId: 'sub-xor', icon: SVG_XOR },
     { type: 'CUSTOM', name: 'XNOR Gate', description: 'Composite XNOR gate', customGateId: 'sub-xnor', icon: SVG_XNOR },
+    { type: 'BUS_AND', name: 'Bus AND', description: 'Bitwise AND for numeric buses', icon: SVG_BUS },
+    { type: 'BUS_OR', name: 'Bus OR', description: 'Bitwise OR for numeric buses', icon: SVG_BUS },
+    { type: 'BUS_XOR', name: 'Bus XOR', description: 'Bitwise XOR for numeric buses', icon: SVG_BUS },
+    { type: 'BUS_NOT', name: 'Bus NOT', description: 'Bitwise invert within bus width', icon: SVG_BUS },
+    { type: 'BUS_ADD', name: 'Bus ADD', description: 'Adds two bus values modulo width', icon: SVG_BUS },
+    { type: 'BUS_SUB', name: 'Bus SUB', description: 'Subtracts two bus values modulo width', icon: SVG_BUS },
   ];
 
   const outputs: ToolboxItem[] = [
     { type: 'LED', name: 'LED Light', description: 'Illuminates HIGH (green) or LOW (gray)', icon: SVG_LED },
+    { type: 'BUS_OUTPUT', name: 'Bus Output', description: 'Displays numeric bus value', icon: SVG_BUS },
   ];
 
   if (activeTabId !== 'main') {
