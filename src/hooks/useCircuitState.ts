@@ -1792,7 +1792,7 @@ export function useCircuitState() {
           return;
         }
 
-        // Apply circuit state FIRST, then clean the URL
+        // Apply circuit state
         setTabs(data.state.tabs);
         setCustomGates(data.state.customGates);
         // Restore the tab that was active when the circuit was shared, if it still exists
@@ -1804,11 +1804,7 @@ export function useCircuitState() {
         setStepCount(0);
         setOscillationError(false);
 
-        // Use window.history.replaceState to remove ?share=xxx from URL
-        // WITHOUT triggering React Router navigation (which would cause remount + state reset)
-        const cleanUrl = window.location.pathname;
-        window.history.replaceState(null, '', cleanUrl);
-
+        // Keep ?share=xxx in the URL so the link stays bookmarkable/shareable
         console.log(`[GateSim] Shared circuit loaded: "${data.name}"`);
       } catch (err) {
         console.error('[GateSim] Network error loading shared circuit:', err);
