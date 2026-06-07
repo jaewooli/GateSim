@@ -97,6 +97,7 @@ Manages all simulation controls, UI interactions, and state history:
 - **Multi-Selection & Theme State**: Manages `selectedNodeIds: string[]`, theme (`light` | `dark`), and group movement via `moveNodes`.
 - **Logic Analyzer Probes**: Manages `probedNodeIds` and captures time-series histories in `waveformHistory` at 50ms intervals (100 samples total).
 - **Step Simulation**: Toggles all CLOCK generator outputs when propagation stabilizes (empty queue) to advance clock cycles in manual mode.
+- **User Authentication**: Exposes `user` state and sync helpers (`loginUser`, `logoutUser`), automatically synchronizing curriculum progress to the backend APIs in the background when logged in.
 - **Curriculum Verification (`verifyCurrentMission`)**: Iterates through mission truth tables step-by-step, evaluating latches and checking output values against expected results.
 
 ---
@@ -123,6 +124,8 @@ The user interface is structured in a flex layout:
    - Sandbox: Displays category groups (Inputs, Gates, Outputs, Presets, User Made Custom Gates).
    - Curriculum: Renders active mission briefings, hints, resetting tools, loading solutions, and truth-table verification triggers.
 
+5. **`src/components/AuthModal.tsx`**: Sign In and Registration overlay supporting password validation and token checks.
+
 ---
 
 ## 6. Styling System (`src/index.css`)
@@ -131,3 +134,12 @@ Custom variables mapped across light and dark theme classes:
 - **Light Mode (`:root`)**: Warm gray canvas (`#E6E7E3`), cream cards (`#F4F5F2`), neon lime green accent (`#B6E63A`).
 - **Dark Mode (`body.dark-theme`)**: Sleek Teenage Engineering charcoal (`#141517`), dark gray panels (`#222428`), glowing wire particles.
 - All cards feature standard transitions, hover translation float lifts (`transform: translateY(-2px)`), and modern typography imports.
+
+---
+
+## 7. Dynamic Backend Server (`server.cjs`)
+A lightweight Node.js Express server configured to serve both the React app and custom API endpoints:
+
+- **Database**: Uses lightweight file-based JSON storage (`db/users.json`, `db/circuits.json`, `db/progress.json`) in the workspace, ensuring zero complex database setup is required.
+- **Auth Endpoint**: Custom sha256 encryption using the Node.js built-in `crypto` module (zero native package binary dependencies) to verify users and issue authorization sessions.
+- **Progress Syncing**: Syncs and retrieves curriculum states automatically.

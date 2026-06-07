@@ -1,5 +1,6 @@
-import React, { useRef } from 'react';
+import React, { useRef, useState } from 'react';
 import type { CircuitHook } from '../hooks/useCircuitState';
+import AuthModal from './AuthModal';
 
 interface HeaderProps {
   circuit: CircuitHook;
@@ -34,8 +35,13 @@ export const Header: React.FC<HeaderProps> = ({ circuit, onOpenCustomGateModal }
     MISSIONS,
     activeMissionId,
     setActiveMissionId,
+    // Auth
+    user,
+    loginUser,
+    logoutUser,
   } = circuit;
 
+  const [isAuthModalOpen, setIsAuthModalOpen] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const handleAddTab = () => {
@@ -184,6 +190,29 @@ export const Header: React.FC<HeaderProps> = ({ circuit, onOpenCustomGateModal }
             {theme === 'light' ? '🌙 Dark Mode' : '☀️ Light Mode'}
           </button>
 
+          <div className="divider" />
+
+          {/* Authentication Status / Trigger */}
+          {user ? (
+            <button
+              onClick={logoutUser}
+              className="danger outline"
+              title={`Logged in as ${user.username}. Click to Sign Out.`}
+              style={{ display: 'flex', alignItems: 'center', gap: '6px' }}
+            >
+              <span>👤</span> {user.username}
+            </button>
+          ) : (
+            <button
+              onClick={() => setIsAuthModalOpen(true)}
+              className="primary"
+              title="Sign In / Create Account to save progress"
+              style={{ display: 'flex', alignItems: 'center', gap: '6px' }}
+            >
+              <span>👤</span> Sign In
+            </button>
+          )}
+
           {/* Sandbox exclusive actions */}
           {appMode === 'sandbox' && (
             <>
@@ -254,6 +283,13 @@ export const Header: React.FC<HeaderProps> = ({ circuit, onOpenCustomGateModal }
           </div>
         </div>
       )}
+
+      {/* Authentication Modal overlay */}
+      <AuthModal
+        isOpen={isAuthModalOpen}
+        onClose={() => setIsAuthModalOpen(false)}
+        onLoginSuccess={loginUser}
+      />
     </div>
   );
 };

@@ -886,6 +886,76 @@ export function useCircuitState() {
   const [tabs, setTabs] = useState<Tab[]>(DEMO_TABS);
   const [activeTabId, setActiveTabId] = useState<string>('main');
   const [customGates, setCustomGates] = useState<Record<string, SubCircuitDefinition>>(DEMO_CUSTOM_GATES);
+
+  // User Authentication State
+  const [user, setUser] = useState<{ token: string; username: string } | null>(() => {
+    try {
+      const token = localStorage.getItem('authToken');
+      const username = localStorage.getItem('authUsername');
+      return token && username ? { token, username } : null;
+    } catch {
+      return null;
+    }
+  });
+
+  const loadProgressFromServer = async (token: string) => {
+    try {
+      const response = await fetch('/gatesimulator/api/user/progress', {
+        headers: {
+          'Authorization': `Bearer ${token}`
+        }
+      });
+      if (response.ok) {
+        const data = await response.json();
+        if (data.completedMissions) {
+          setCompletedMissions(data.completedMissions);
+          localStorage.setItem('completedMissions', JSON.stringify(data.completedMissions));
+        }
+        if (data.missionStates) {
+          setMissionStates(data.missionStates);
+          localStorage.setItem('missionStates', JSON.stringify(data.missionStates));
+        }
+        if (data.curriculumCustomGates) {
+          setCurriculumCustomGates(data.curriculumCustomGates);
+          localStorage.setItem('curriculumCustomGates', JSON.stringify(data.curriculumCustomGates));
+        }
+      }
+    } catch (err) {
+      console.error('Failed to load progress from server:', err);
+    }
+  };
+
+  const loginUser = useCallback((token: string, username: string) => {
+    localStorage.setItem('authToken', token);
+    localStorage.setItem('authUsername', username);
+    setUser({ token, username });
+    loadProgressFromServer(token);
+  }, []);
+
+  const logoutUser = useCallback(() => {
+    localStorage.removeItem('authToken');
+    localStorage.removeItem('authUsername');
+    setUser(null);
+  }, []);
+
+  const syncProgressToServer = useCallback(async (token: string, completed: string[], states: Record<string, CircuitState>, gates: Record<string, SubCircuitDefinition>) => {
+    try {
+      await fetch('/gatesimulator/api/user/progress', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
+        body: JSON.stringify({
+          completedMissions: completed,
+          missionStates: states,
+          curriculumCustomGates: gates
+        })
+      });
+    } catch (err) {
+      console.error('Failed to sync progress to server:', err);
+    }
+  }, []);
   const [curriculumCustomGates, setCurriculumCustomGates] = useState<Record<string, SubCircuitDefinition>>(() => {
     try {
       const saved = localStorage.getItem('curriculumCustomGates');
@@ -918,6 +988,13 @@ export function useCircuitState() {
       return {};
     }
   });
+
+  // Sync progress automatically when user is logged in
+  useEffect(() => {
+    if (user) {
+      syncProgressToServer(user.token, completedMissions, missionStates, curriculumCustomGates);
+    }
+  }, [user, completedMissions, missionStates, curriculumCustomGates, syncProgressToServer]);
 
   // Canvas Interactions
   const [transform, setTransform] = useState<CanvasTransform>(INITIAL_TRANSFORM);
@@ -2121,6 +2198,11 @@ export function useCircuitState() {
     toggleShowPinLabels,
     canUndo: undoStack.length > 0,
     canRedo: redoStack.length > 0,
+
+    // Authentication
+    user,
+    loginUser,
+    logoutUser,
 
     // Theme (Teenage Engineering styling)
     theme,
