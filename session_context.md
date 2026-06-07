@@ -13,7 +13,7 @@ This document provides a comprehensive summary of the **GateSim** codebase. Read
    - **Curriculum Mode (`/curriculum/:missionId`)**: A step-by-step CPU design roadmap (from NAND/NOR gates up to a working 4-bit CPU) with interactive verification testing.
 2. **Simulation Engine**: Queue-based reactive propagation engine supporting latch feedback loops, clock cycles (30Hz), oscillation safety limits, and step-by-step debugger stepping.
 3. **Teenage Engineering UI**: Smooth panning & zooming canvas with grid snaps, glowing wire animations (particle flow on HIGH state wires), multiple node marquee selection/group dragging, and a dual theme system (Warm Light / TE Neon Dark mode).
-4. **Real-time Logic Analyzer**: Interactive waveform drawer displaying time-series digital signal histories (60 samples at 25ms interval) for probed nodes.
+4. **Real-time Logic Analyzer**: Interactive waveform drawer displaying time-series digital signal histories (100 samples at 50ms interval) for probed nodes.
 
 ---
 
@@ -95,7 +95,8 @@ Manages all simulation controls, UI interactions, and state history:
 - **Auto-Simulation**: Uses a `setInterval` running at 30Hz to evaluate clock toggles and flush signal propagations.
 - **Copy / Paste & Hotkeys**: Listens to keyboard shortcuts (`Ctrl+Z`, `Ctrl+Y`, `Ctrl+C`, `Ctrl+V`, `Delete`, `Backspace`) for rapid canvas interactions.
 - **Multi-Selection & Theme State**: Manages `selectedNodeIds: string[]`, theme (`light` | `dark`), and group movement via `moveNodes`.
-- **Logic Analyzer Probes**: Manages `probedNodeIds` and captures time-series histories in `waveformHistory` at 100ms intervals.
+- **Logic Analyzer Probes**: Manages `probedNodeIds` and captures time-series histories in `waveformHistory` at 50ms intervals (100 samples total).
+- **Step Simulation**: Toggles all CLOCK generator outputs when propagation stabilizes (empty queue) to advance clock cycles in manual mode.
 - **Curriculum Verification (`verifyCurrentMission`)**: Iterates through mission truth tables step-by-step, evaluating latches and checking output values against expected results.
 
 ---
@@ -104,7 +105,7 @@ Manages all simulation controls, UI interactions, and state history:
 The user interface is structured in a flex layout:
 
 1. **`src/App.tsx`**: The main entry layout containing:
-   - `<Header>` (Top controls, simulation toggle, import/export, dark mode switch, sandbox tabs).
+   - `<Header>` (Top bar with mode switcher, simulation controls, undo/redo, theme, and actions; and a dedicated full-width Row 2 tab bar for Sandbox sub-circuits).
    - `<Sidebar>` (Left toolbox for Sandbox, or CPU design roadmap roadmap list for Curriculum).
    - Canvas wrapper holding `<Canvas>` (Interactive SVG), `<WaveformViewer>` (Logic Analyzer graph), and `<CurriculumDock>` (Unlocked components dock).
    - `<Inspector>` (Right properties editor showing labels, clocks, and logic analyzer probe toggles).

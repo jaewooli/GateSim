@@ -970,6 +970,29 @@ export function useCircuitState() {
     });
   }, []);
 
+  const probeNodesBulk = useCallback((nodeIds: string[], forceProbe?: boolean) => {
+    setProbedNodeIds((prev) => {
+      const currentlyProbed = nodeIds.filter(id => prev.includes(id));
+      const shouldAdd = forceProbe !== undefined ? forceProbe : (currentlyProbed.length < nodeIds.length);
+
+      if (shouldAdd) {
+        const toAdd = nodeIds.filter(id => !prev.includes(id));
+        if (toAdd.length === 0) return prev;
+        return [...prev, ...toAdd];
+      } else {
+        const next = prev.filter(id => !nodeIds.includes(id));
+        setWaveformHistory((history) => {
+          const nextHistory = { ...history };
+          nodeIds.forEach(id => {
+            delete nextHistory[id];
+          });
+          return nextHistory;
+        });
+        return next;
+      }
+    });
+  }, []);
+
   const clearWaveformHistory = useCallback(() => {
     setWaveformHistory({});
   }, []);
@@ -1025,11 +1048,11 @@ export function useCircuitState() {
             }
           }
           const history = next[id] || [];
-          next[id] = [...history, val].slice(-60); // Keep last 60 samples
+          next[id] = [...history, val].slice(-100); // Keep last 100 samples
         });
         return next;
       });
-    }, 25);
+    }, 50); // Run analyzer at 50ms sampling rate (immune to aliasing for 100ms clock)
     return () => clearInterval(interval);
   }, [probedNodeIds, isSimulating]);
 
@@ -1947,10 +1970,61 @@ export function useCircuitState() {
 
   // STEP-BY-STEP PROPAGATION ACTION
   const stepSimulation = useCallback(() => {
-    // If not simulating or step queue is empty, initialize queue with switches/clocks
     let activeQueue = [...debugQueue];
-    if (activeQueue.length === 0) {
-      nodes.forEach((n) => {
+    let nextNodes = [...nodes];
+    const isNewCycle = activeQueue.length === 0;
+
+    if (isNewCycle) {
+      // 1. Calculate virtual time step based on the minimum clock interval
+      const clocks = nodes.filter((n) => n.type === 'CLOCK');
+      const T_step = clocks.length > 0 
+        ? Math.min(...clocks.map((c) => c.clockInterval || 1000)) 
+        : 500;
+      const N = Math.max(1, Math.round(T_step / 50));
+
+      // 2. Append N samples of the current stable state to the waveform history
+      if (probedNodeIds.length > 0) {
+        setWaveformHistory((prev) => {
+          const next = { ...prev };
+          probedNodeIds.forEach((id) => {
+            const node = nodes.find((n) => n.id === id);
+            let val = false;
+            if (node) {
+              if (node.outputs[0]) {
+                val = node.outputs[0].value;
+              } else if (node.inputs[0]) {
+                val = node.inputs[0].value;
+              }
+            }
+            const history = next[id] || [];
+            const newSamples = Array(N).fill(val);
+            next[id] = [...history, ...newSamples].slice(-100);
+          });
+          return next;
+        });
+      }
+
+      // 3. Toggle all CLOCK nodes to start a new propagation cycle
+      nextNodes = nodes.map((n) => {
+        if (n.type === 'CLOCK') {
+          const outPin = n.outputs[0];
+          if (outPin) {
+            return {
+              ...n,
+              outputs: [
+                {
+                  ...outPin,
+                  value: !outPin.value, // Toggle the output value of the clock
+                }
+              ]
+            };
+          }
+        }
+        return n;
+      });
+
+      // Populate queue with updated clock outputs and existing switch/button outputs
+      nextNodes.forEach((n) => {
         if (n.type === 'SWITCH' || n.type === 'BUTTON' || n.type === 'CLOCK' || n.type === 'PORT_IN') {
           if (n.outputs[0]) {
             activeQueue.push({ pinId: n.outputs[0].id, value: n.outputs[0].value });
@@ -1959,7 +2033,7 @@ export function useCircuitState() {
       });
     }
 
-    const result = runSimulationStep({ nodes, connections }, activeQueue, activeCustomGates);
+    const result = runSimulationStep({ nodes: nextNodes, connections }, activeQueue, activeCustomGates);
     
     // Update circuit nodes
     updateActiveCircuitState(() => result.state);
@@ -1968,7 +2042,7 @@ export function useCircuitState() {
     setDebugQueue(result.nextQueue);
     setStepCount((s) => s + 1);
 
-    // Record a single waveform sample for this step
+    // 4. Update the last sample of the waveform history to show the latest value
     if (probedNodeIds.length > 0) {
       setWaveformHistory((prev) => {
         const next = { ...prev };
@@ -1983,7 +2057,13 @@ export function useCircuitState() {
             }
           }
           const history = next[id] || [];
-          next[id] = [...history, val].slice(-60);
+          if (history.length > 0) {
+            const updatedHistory = [...history];
+            updatedHistory[updatedHistory.length - 1] = val;
+            next[id] = updatedHistory;
+          } else {
+            next[id] = [val];
+          }
         });
         return next;
       });
@@ -2050,6 +2130,7 @@ export function useCircuitState() {
     probedNodeIds,
     waveformHistory,
     toggleProbeNode,
+    probeNodesBulk,
     clearWaveformHistory,
 
     // App Mode

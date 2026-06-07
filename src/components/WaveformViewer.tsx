@@ -34,7 +34,7 @@ export const WaveformViewer: React.FC<WaveformViewerProps> = ({ circuit }) => {
     if (!values || values.length === 0) return '';
     
     const points: string[] = [];
-    const maxSamples = 60;
+    const maxSamples = 100;
     const dx = width / (maxSamples - 1);
     const startIdx = maxSamples - values.length;
     

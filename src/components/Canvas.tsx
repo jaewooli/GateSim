@@ -380,6 +380,7 @@ export const Canvas: React.FC<CanvasProps> = ({ circuit }) => {
         onMouseDown={handleCanvasMouseDown}
         onMouseMove={handleCanvasMouseMove}
         onMouseUp={handleCanvasMouseUp}
+        onContextMenu={(e) => e.preventDefault()}
       >
         <defs>
           {/* Engineering grid pattern */}

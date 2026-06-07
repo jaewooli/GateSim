@@ -61,13 +61,22 @@
 /* Tabs Panel */
 .tabs-manager-header {
   display: flex;
-  align-items: center;
+  align-items: flex-end;
   gap: 6px;
   overflow-x: auto;
-  max-width: 42vw;
-  padding-bottom: 3px;
+  max-width: 100%;
   scrollbar-width: thin;
   flex-shrink: 1;
+}
+
+.sub-header-tabs-bar {
+  display: flex;
+  align-items: flex-end;
+  background-color: var(--secondary-bg);
+  border-bottom: 2px solid var(--border-color);
+  padding: 0 24px;
+  height: 48px;
+  z-index: 9;
 }
 
 .tabs-manager-header::-webkit-scrollbar {
