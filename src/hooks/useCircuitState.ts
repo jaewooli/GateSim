@@ -146,6 +146,13 @@ const DEMO_CUSTOM_GATES: Record<string, SubCircuitDefinition> = {
     nodes: DEMO_TABS[1].state.nodes,
     connections: DEMO_TABS[1].state.connections,
   },
+  'sub-sr-latch': {
+    id: 'sub-sr-latch',
+    name: 'SR_LATCH',
+    color: '#F15B2A',
+    nodes: DEMO_TABS[2].state.nodes,
+    connections: DEMO_TABS[2].state.connections,
+  },
   'sub-mux': {
     id: 'sub-mux',
     name: 'MUX_2_TO_1',

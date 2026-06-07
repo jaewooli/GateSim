@@ -6,7 +6,7 @@ export const GATE_WIDTH = 110;
 export const GATE_HEIGHT = 70;
 
 export function getPinPosition(node: Node, pinId: string) {
-  const isInput = pinId.includes('-in-');
+  const isInput = node.inputs.some((p) => p.id === pinId);
   const pin = isInput
     ? node.inputs.find((p) => p.id === pinId)
     : node.outputs.find((p) => p.id === pinId);

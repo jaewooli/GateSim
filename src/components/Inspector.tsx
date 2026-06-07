@@ -39,7 +39,7 @@ export const Inspector: React.FC<InspectorProps> = ({ circuit }) => {
   // Helper to format types nicely
   const getReadableType = (n: Node) => {
     if (n.type === 'CUSTOM') {
-      if (n.customGateId && ['sub-half-adder', 'sub-mux'].includes(n.customGateId)) {
+      if (n.customGateId && ['sub-half-adder', 'sub-sr-latch', 'sub-mux'].includes(n.customGateId)) {
         return 'Advanced Block';
       }
       return 'Custom Gate';

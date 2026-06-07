@@ -270,7 +270,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ onAddNode, customGates, active
         <div className="toolbox-title">Advanced Blocks</div>
         <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
           {Object.values(customGates)
-            .filter((g) => ['sub-half-adder', 'sub-mux'].includes(g.id))
+            .filter((g) => ['sub-half-adder', 'sub-sr-latch', 'sub-mux'].includes(g.id))
             .map((gate) => (
               <div
                 key={gate.id}
@@ -297,13 +297,13 @@ export const Sidebar: React.FC<SidebarProps> = ({ onAddNode, customGates, active
       <div className="toolbox-group">
         <div className="toolbox-title">Custom Gates</div>
         <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
-          {Object.values(customGates).filter((g) => !['sub-half-adder', 'sub-mux'].includes(g.id)).length === 0 ? (
+          {Object.values(customGates).filter((g) => !['sub-half-adder', 'sub-sr-latch', 'sub-mux'].includes(g.id)).length === 0 ? (
             <div style={{ fontSize: '11px', color: 'var(--text-muted)', fontStyle: 'italic', padding: '8px 0' }}>
               No custom gates packaged yet. Build a sub-circuit in another tab and click "Package Gate".
             </div>
           ) : (
             Object.values(customGates)
-              .filter((g) => !['sub-half-adder', 'sub-mux'].includes(g.id))
+              .filter((g) => !['sub-half-adder', 'sub-sr-latch', 'sub-mux'].includes(g.id))
               .map((gate) => (
                 <div
                   key={gate.id}
