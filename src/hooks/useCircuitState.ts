@@ -1127,7 +1127,7 @@ export function useCircuitState() {
             }
           }
           const history = next[id] || [];
-          next[id] = [...history, val].slice(-100); // Keep last 100 samples
+          next[id] = [...history, val].slice(-1000); // Keep last 1000 samples
         });
         return next;
       });
@@ -1761,6 +1761,42 @@ export function useCircuitState() {
     }
   }, [saveHistory]);
 
+  // Load shared circuit from URL query param (?share=circuitId)
+  useEffect(() => {
+    const params = new URLSearchParams(location.search);
+    const shareId = params.get('share');
+    if (shareId && appMode === 'sandbox') {
+      const loadShared = async () => {
+        try {
+          const response = await fetch(`/gatesimulator/api/circuits/share/${shareId}`);
+          if (response.ok) {
+            const data = await response.json();
+            if (data.state && data.state.tabs && data.state.customGates) {
+              saveHistory();
+              setTabs(data.state.tabs);
+              setCustomGates(data.state.customGates);
+              setActiveTabId('main');
+              setTransform(INITIAL_TRANSFORM);
+              setSelectedNodeId(null);
+              setStepCount(0);
+              setOscillationError(false);
+              navigate('/sandbox', { replace: true });
+              alert(`Successfully loaded shared circuit: "${data.name}"`);
+            } else {
+              alert('Invalid shared circuit format.');
+            }
+          } else {
+            alert('Failed to load shared circuit. It may have been deleted or the link is invalid.');
+          }
+        } catch (err) {
+          console.error('Failed to fetch shared circuit:', err);
+          alert('Network error loading shared circuit.');
+        }
+      };
+      loadShared();
+    }
+  }, [location.search, appMode, navigate, saveHistory]);
+
   // SIMULATION EXECUTION LOOP (REAL-TIME STATE PROPAGATION)
   useEffect(() => {
     if (!isSimulating) return;
@@ -2181,7 +2217,7 @@ export function useCircuitState() {
             }
             const history = next[id] || [];
             const newSamples = Array(N).fill(val);
-            next[id] = [...history, ...newSamples].slice(-100);
+            next[id] = [...history, ...newSamples].slice(-1000); // Keep last 1000 samples
           });
           return next;
         });

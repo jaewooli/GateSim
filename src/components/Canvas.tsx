@@ -97,6 +97,10 @@ export const Canvas: React.FC<CanvasProps> = ({ circuit }) => {
   const [hoveredWireId, setHoveredWireId] = useState<string | null>(null);
   const [resizedNode, setResizedNode] = useState<{ id: string; startWidth: number; startHeight: number; startX: number; startY: number } | null>(null);
 
+  // Touch tracking refs for mobile/tablet zoom and pan
+  const lastTouchDistance = useRef<number | null>(null);
+  const lastTouchCenter = useRef<{ x: number; y: number } | null>(null);
+
   // Convert screen coordinates to canvas grid coordinates
   const getCanvasCoords = (clientX: number, clientY: number) => {
     if (!svgRef.current) return { x: 0, y: 0 };
@@ -264,6 +268,162 @@ export const Canvas: React.FC<CanvasProps> = ({ circuit }) => {
     });
   };
 
+  // Touch handlers for mobile/tablet interaction
+  const handleTouchStart = (e: React.TouchEvent<SVGSVGElement>) => {
+    if (e.touches.length === 1) {
+      const touch = e.touches[0];
+      if (e.target === svgRef.current || (e.target as SVGElement).classList.contains('canvas-grid')) {
+        setIsPanning(true);
+        setPanStart({ x: touch.clientX - transform.x, y: touch.clientY - transform.y });
+      }
+    } else if (e.touches.length === 2) {
+      setIsPanning(false);
+      setDraggedNodes([]);
+      setSelectionBox(null);
+      setWireDraft(null);
+
+      const t1 = e.touches[0];
+      const t2 = e.touches[1];
+      const dist = Math.hypot(t2.clientX - t1.clientX, t2.clientY - t1.clientY);
+      lastTouchDistance.current = dist;
+
+      const midX = (t1.clientX + t2.clientX) / 2;
+      const midY = (t1.clientY + t2.clientY) / 2;
+      lastTouchCenter.current = { x: midX, y: midY };
+      setPanStart({ x: midX - transform.x, y: midY - transform.y });
+    }
+  };
+
+  const handleTouchMove = (e: React.TouchEvent<SVGSVGElement>) => {
+    if (e.touches.length === 1 && isPanning) {
+      const touch = e.touches[0];
+      setTransform((prev) => ({
+        ...prev,
+        x: touch.clientX - panStart.x,
+        y: touch.clientY - panStart.y,
+      }));
+    } else if (e.touches.length === 1 && draggedNodes.length > 0) {
+      const touch = e.touches[0];
+      const coords = getCanvasCoords(touch.clientX, touch.clientY);
+      const updates = draggedNodes.map((dn) => {
+        const snapGrid = 20;
+        const targetX = Math.round((coords.x - dn.dragOffsetX) / snapGrid) * snapGrid;
+        const targetY = Math.round((coords.y - dn.dragOffsetY) / snapGrid) * snapGrid;
+        return { id: dn.id, x: targetX, y: targetY };
+      });
+      moveNodes(updates);
+    } else if (e.touches.length === 1 && wireDraft) {
+      const touch = e.touches[0];
+      const coords = getCanvasCoords(touch.clientX, touch.clientY);
+      setWireDraft({
+        ...wireDraft,
+        currentX: coords.x,
+        currentY: coords.y,
+      });
+    } else if (e.touches.length === 2 && lastTouchDistance.current && lastTouchCenter.current) {
+      const t1 = e.touches[0];
+      const t2 = e.touches[1];
+      const dist = Math.hypot(t2.clientX - t1.clientX, t2.clientY - t1.clientY);
+      
+      const factor = dist / lastTouchDistance.current;
+      const newZoom = Math.min(Math.max(transform.zoom * factor, 0.2), 3);
+
+      const midX = (t1.clientX + t2.clientX) / 2;
+      const midY = (t1.clientY + t2.clientY) / 2;
+
+      setTransform((prev) => ({
+        zoom: newZoom,
+        x: midX - (midX - prev.x) * (newZoom / prev.zoom),
+        y: midY - (midY - prev.y) * (newZoom / prev.zoom),
+      }));
+
+      lastTouchDistance.current = dist;
+      lastTouchCenter.current = { x: midX, y: midY };
+    }
+  };
+
+  const handleTouchEnd = (e: React.TouchEvent<SVGSVGElement>) => {
+    if (wireDraft) {
+      const touch = e.changedTouches[0];
+      const element = document.elementFromPoint(touch.clientX, touch.clientY);
+      const pinElement = element?.closest('.pin-circle') as SVGElement | null;
+      if (pinElement) {
+        const targetPinId = pinElement.getAttribute('data-pin-id');
+        if (targetPinId && wireDraft.fromPinId !== targetPinId) {
+          let outPinId = '';
+          let inPinId = '';
+          if (wireDraft.fromPinId.includes('-out-') && targetPinId.includes('-in-')) {
+            outPinId = wireDraft.fromPinId;
+            inPinId = targetPinId;
+          } else if (wireDraft.fromPinId.includes('-in-') && targetPinId.includes('-out-')) {
+            outPinId = targetPinId;
+            inPinId = wireDraft.fromPinId;
+          }
+          if (outPinId && inPinId) {
+            connectPins(outPinId, inPinId);
+          }
+        }
+      }
+    }
+
+    setIsPanning(false);
+    setDraggedNodes([]);
+    setSelectionBox(null);
+    setWireDraft(null);
+    setResizedNode(null);
+    lastTouchDistance.current = null;
+    lastTouchCenter.current = null;
+  };
+
+  // Node Drag Start on Touch
+  const handleNodeTouchStart = (e: React.TouchEvent, node: Node) => {
+    e.stopPropagation();
+    
+    if (!selectedNodeIds.includes(node.id)) {
+      setSelectedNodeIds([node.id]);
+    }
+
+    const touch = e.touches[0];
+    const coords = getCanvasCoords(touch.clientX, touch.clientY);
+    const targetElement = e.target as SVGElement;
+
+    if (targetElement.classList.contains('interactive-switch')) {
+      toggleSwitch(node.id);
+      return;
+    }
+
+    if (targetElement.classList.contains('interactive-button')) {
+      setButtonState(node.id, true);
+      const handleTouchButtonRelease = () => {
+        setButtonState(node.id, false);
+        window.removeEventListener('touchend', handleTouchButtonRelease);
+      };
+      window.addEventListener('touchend', handleTouchButtonRelease);
+      return;
+    }
+
+    const activeDragSelection = selectedNodeIds.includes(node.id) ? selectedNodeIds : [node.id];
+    const currentDragged = nodes
+      .filter((n) => activeDragSelection.includes(n.id))
+      .map((n) => ({
+        id: n.id,
+        dragOffsetX: coords.x - n.x,
+        dragOffsetY: coords.y - n.y,
+      }));
+
+    setDraggedNodes(currentDragged);
+  };
+
+  const handlePinTouchStart = (e: React.TouchEvent, pin: Pin, node: Node) => {
+    e.stopPropagation();
+    const pinPos = getPinPosition(node, pin.id);
+    setWireDraft({
+      fromPinId: pin.id,
+      currentX: pinPos.x,
+      currentY: pinPos.y,
+    });
+  };
+
   // Wire Connection Drop
   const handlePinMouseUp = (e: React.MouseEvent, targetPin: Pin) => {
     e.stopPropagation();
@@ -380,6 +540,9 @@ export const Canvas: React.FC<CanvasProps> = ({ circuit }) => {
         onMouseDown={handleCanvasMouseDown}
         onMouseMove={handleCanvasMouseMove}
         onMouseUp={handleCanvasMouseUp}
+        onTouchStart={handleTouchStart}
+        onTouchMove={handleTouchMove}
+        onTouchEnd={handleTouchEnd}
         onContextMenu={(e) => e.preventDefault()}
       >
         <defs>
@@ -534,6 +697,7 @@ export const Canvas: React.FC<CanvasProps> = ({ circuit }) => {
                 key={node.id}
                 transform={`translate(0, 0)`}
                 onMouseDown={(e) => handleNodeMouseDown(e, node)}
+                onTouchStart={(e) => handleNodeTouchStart(e, node)}
                 onDoubleClick={(e) => {
                   if (node.type === 'CUSTOM' && node.customGateId) {
                     e.stopPropagation();
@@ -764,6 +928,8 @@ export const Canvas: React.FC<CanvasProps> = ({ circuit }) => {
                         className={`pin-circle ${pin.value ? 'connected-high' : 'connected-low'}`}
                         onMouseDown={(e) => handlePinMouseDown(e, pin, node)}
                         onMouseUp={(e) => handlePinMouseUp(e, pin)}
+                        onTouchStart={(e) => handlePinTouchStart(e, pin, node)}
+                        data-pin-id={pin.id}
                       >
                         <title>{`Input Pin ${pin.index + 1}: ${pin.value ? '1' : '0'}`}</title>
                       </circle>
@@ -802,6 +968,8 @@ export const Canvas: React.FC<CanvasProps> = ({ circuit }) => {
                         className={`pin-circle ${pin.value ? 'connected-high' : 'connected-low'}`}
                         onMouseDown={(e) => handlePinMouseDown(e, pin, node)}
                         onMouseUp={(e) => handlePinMouseUp(e, pin)}
+                        onTouchStart={(e) => handlePinTouchStart(e, pin, node)}
+                        data-pin-id={pin.id}
                       >
                         <title>{`Output Pin ${pin.index + 1}: ${pin.value ? '1' : '0'}`}</title>
                       </circle>

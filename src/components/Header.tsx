@@ -42,6 +42,7 @@ export const Header: React.FC<HeaderProps> = ({ circuit, onOpenCustomGateModal }
   } = circuit;
 
   const [isAuthModalOpen, setIsAuthModalOpen] = useState(false);
+  const [isShortcutsOpen, setIsShortcutsOpen] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const handleAddTab = () => {
@@ -190,6 +191,13 @@ export const Header: React.FC<HeaderProps> = ({ circuit, onOpenCustomGateModal }
             {theme === 'light' ? '🌙 Dark Mode' : '☀️ Light Mode'}
           </button>
 
+          <button
+            onClick={() => setIsShortcutsOpen(true)}
+            title="Show keyboard shortcuts cheat sheet"
+          >
+            ⌨️ Shortcuts
+          </button>
+
           <div className="divider" />
 
           {/* Authentication Status / Trigger */}
@@ -290,6 +298,110 @@ export const Header: React.FC<HeaderProps> = ({ circuit, onOpenCustomGateModal }
         onClose={() => setIsAuthModalOpen(false)}
         onLoginSuccess={loginUser}
       />
+
+      {/* Shortcuts Cheat Sheet Modal Overlay */}
+      {isShortcutsOpen && (
+        <div
+          onClick={() => setIsShortcutsOpen(false)}
+          style={{
+            position: 'fixed',
+            top: 0,
+            left: 0,
+            width: '100vw',
+            height: '100vh',
+            backgroundColor: 'rgba(0, 0, 0, 0.75)',
+            backdropFilter: 'blur(6px)',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            zIndex: 9999,
+          }}
+        >
+          <div
+            onClick={(e) => e.stopPropagation()}
+            style={{
+              width: '450px',
+              maxWidth: '90%',
+              backgroundColor: '#1E1E2E',
+              border: '2px solid var(--border-color)',
+              borderRadius: '16px',
+              padding: '24px',
+              color: '#F8F8F2',
+              boxShadow: '0 8px 32px rgba(0, 0, 0, 0.5)',
+              display: 'flex',
+              flexDirection: 'column',
+              gap: '16px'
+            }}
+          >
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px solid var(--border-color)', paddingBottom: '12px' }}>
+              <h3 style={{ margin: 0, fontSize: '18px', fontWeight: 800 }}>⌨️ Keyboard Shortcuts</h3>
+              <button
+                onClick={() => setIsShortcutsOpen(false)}
+                style={{ background: 'none', border: 'none', color: 'var(--text-muted)', cursor: 'pointer', fontSize: '16px' }}
+              >
+                ✕
+              </button>
+            </div>
+            
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', maxHeight: '350px', overflowY: 'auto', fontSize: '12px' }}>
+              <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left' }}>
+                <thead>
+                  <tr style={{ borderBottom: '1px solid rgba(255, 255, 255, 0.1)' }}>
+                    <th style={{ padding: '6px 0', color: 'var(--text-muted)' }}>Action</th>
+                    <th style={{ padding: '6px 0', textAlign: 'right', color: 'var(--text-muted)' }}>Shortcut</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <tr style={{ borderBottom: '1px solid rgba(255, 255, 255, 0.05)' }}>
+                    <td style={{ padding: '8px 0', fontWeight: 'bold' }}>Copy Selected Node</td>
+                    <td style={{ padding: '8px 0', textAlign: 'right', fontFamily: 'var(--mono)', color: 'var(--accent)' }}>Ctrl + C</td>
+                  </tr>
+                  <tr style={{ borderBottom: '1px solid rgba(255, 255, 255, 0.05)' }}>
+                    <td style={{ padding: '8px 0', fontWeight: 'bold' }}>Paste Copied Node</td>
+                    <td style={{ padding: '8px 0', textAlign: 'right', fontFamily: 'var(--mono)', color: 'var(--accent)' }}>Ctrl + V</td>
+                  </tr>
+                  <tr style={{ borderBottom: '1px solid rgba(255, 255, 255, 0.05)' }}>
+                    <td style={{ padding: '8px 0', fontWeight: 'bold' }}>Undo Action</td>
+                    <td style={{ padding: '8px 0', textAlign: 'right', fontFamily: 'var(--mono)', color: 'var(--accent)' }}>Ctrl + Z</td>
+                  </tr>
+                  <tr style={{ borderBottom: '1px solid rgba(255, 255, 255, 0.05)' }}>
+                    <td style={{ padding: '8px 0', fontWeight: 'bold' }}>Redo Action</td>
+                    <td style={{ padding: '8px 0', textAlign: 'right', fontFamily: 'var(--mono)', color: 'var(--accent)' }}>Ctrl + Y</td>
+                  </tr>
+                  <tr style={{ borderBottom: '1px solid rgba(255, 255, 255, 0.05)' }}>
+                    <td style={{ padding: '8px 0', fontWeight: 'bold' }}>Delete Node / Wire</td>
+                    <td style={{ padding: '8px 0', textAlign: 'right', fontFamily: 'var(--mono)', color: 'var(--accent)' }}>Delete / Backspace</td>
+                  </tr>
+                  <tr style={{ borderBottom: '1px solid rgba(255, 255, 255, 0.05)' }}>
+                    <td style={{ padding: '8px 0', fontWeight: 'bold' }}>Delete Wire</td>
+                    <td style={{ padding: '8px 0', textAlign: 'right', fontFamily: 'var(--mono)', color: 'var(--accent)' }}>Double-click Wire</td>
+                  </tr>
+                  <tr style={{ borderBottom: '1px solid rgba(255, 255, 255, 0.05)' }}>
+                    <td style={{ padding: '8px 0', fontWeight: 'bold' }}>Canvas Panning</td>
+                    <td style={{ padding: '8px 0', textAlign: 'right', fontFamily: 'var(--mono)', color: 'var(--accent)' }}>Right-Click + Drag</td>
+                  </tr>
+                  <tr style={{ borderBottom: '1px solid rgba(255, 255, 255, 0.05)' }}>
+                    <td style={{ padding: '8px 0', fontWeight: 'bold' }}>Canvas Zooming</td>
+                    <td style={{ padding: '8px 0', textAlign: 'right', fontFamily: 'var(--mono)', color: 'var(--accent)' }}>Scroll Wheel</td>
+                  </tr>
+                  <tr style={{ borderBottom: '1px solid rgba(255, 255, 255, 0.05)' }}>
+                    <td style={{ padding: '8px 0', fontWeight: 'bold' }}>Multi-select Area</td>
+                    <td style={{ padding: '8px 0', textAlign: 'right', fontFamily: 'var(--mono)', color: 'var(--accent)' }}>Shift + Drag</td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+
+            <button
+              onClick={() => setIsShortcutsOpen(false)}
+              className="primary"
+              style={{ width: '100%', padding: '10px', fontWeight: 'bold', borderRadius: '8px', marginTop: '8px' }}
+            >
+              Got it
+            </button>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

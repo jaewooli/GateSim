@@ -540,6 +540,33 @@ export const Sidebar: React.FC<SidebarProps> = ({ circuit, onAddNode }) => {
                     <button
                       onClick={(e) => {
                         e.stopPropagation();
+                        const shareUrl = `${window.location.origin}/gatesimulator/sandbox?share=${c.id}`;
+                        navigator.clipboard.writeText(shareUrl).then(() => {
+                          alert('Share link copied to clipboard!');
+                        }).catch(() => {
+                          alert(`Share URL: ${shareUrl}`);
+                        });
+                      }}
+                      style={{
+                        background: 'none',
+                        border: 'none',
+                        color: 'var(--accent)',
+                        cursor: 'pointer',
+                        padding: '2px 4px',
+                        fontSize: '11px',
+                        opacity: 0.6,
+                        marginRight: '4px',
+                        transition: 'opacity 0.15s ease'
+                      }}
+                      onMouseEnter={(e) => e.currentTarget.style.opacity = '1'}
+                      onMouseLeave={(e) => e.currentTarget.style.opacity = '0.6'}
+                      title="Copy Share Link"
+                    >
+                      🔗
+                    </button>
+                    <button
+                      onClick={(e) => {
+                        e.stopPropagation();
                         if (confirm(`Are you sure you want to delete "${c.name}" from the cloud?`)) {
                           deleteCircuitFromCloud(c.id);
                         }

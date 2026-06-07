@@ -307,6 +307,24 @@ app.delete(`${BASE_PATH}/api/circuits/:id`, authenticateToken, async (req, res) 
   }
 });
 
+// 9. Sandbox: Get Shared Circuit by ID (Public)
+app.get(`${BASE_PATH}/api/circuits/share/:id`, async (req, res) => {
+  const { id } = req.params;
+  try {
+    const row = await dbGet('SELECT name, state FROM circuits WHERE id = ?', [id]);
+    if (!row) {
+      return res.status(404).json({ error: 'Shared circuit not found' });
+    }
+    res.json({
+      name: row.name,
+      state: JSON.parse(row.state)
+    });
+  } catch (err) {
+    console.error("Get shared circuit error:", err);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
 // Serve frontend static build files
 app.use(BASE_PATH, express.static(path.join(__dirname, 'dist')));
 
