@@ -187,7 +187,7 @@ app.delete(`${BASE_PATH}/api/circuits/:id`, authenticateToken, (req, res) => {
 app.use(BASE_PATH, express.static(path.join(__dirname, 'dist')));
 
 // Fallback: Support client-side routing (React Router)
-app.get(`${BASE_PATH}/*`, (req, res) => {
+app.get(`${BASE_PATH}/:any*`, (req, res) => {
   res.sendFile(path.join(__dirname, 'dist', 'index.html'));
 });
 
