@@ -55,14 +55,28 @@
 }
 
 /* Tabs Panel */
-.tab-manager {
+.tabs-manager-header {
   display: flex;
   align-items: center;
-  gap: 8px;
-  padding: 8px 24px 0;
-  background-color: var(--primary-bg);
-  border-bottom: 1px solid var(--border-color);
+  gap: 6px;
   overflow-x: auto;
+  max-width: 42vw;
+  padding-bottom: 3px;
+  scrollbar-width: thin;
+  flex-shrink: 1;
+}
+
+.tabs-manager-header::-webkit-scrollbar {
+  height: 4px;
+}
+
+.tabs-manager-header::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.tabs-manager-header::-webkit-scrollbar-thumb {
+  background: var(--border-color);
+  border-radius: var(--border-radius-sm);
 }
 
 .tab-button {

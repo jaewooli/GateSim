@@ -71,9 +71,9 @@ export const Canvas: React.FC<CanvasProps> = ({ circuit }) => {
     customGates,
     transform,
     setTransform,
-    selectedNodeId,
-    setSelectedNodeId,
-    moveNode,
+    selectedNodeIds,
+    setSelectedNodeIds,
+    moveNodes,
     resizeNode,
     connectPins,
     deleteConnection,
@@ -89,9 +89,12 @@ export const Canvas: React.FC<CanvasProps> = ({ circuit }) => {
   const { nodes, connections } = activeTab.state;
 
   const svgRef = useRef<SVGSVGElement>(null);
+  const [canvasMode, setCanvasMode] = useState<'select' | 'pan'>('select');
   const [isPanning, setIsPanning] = useState(false);
   const [panStart, setPanStart] = useState({ x: 0, y: 0 });
-  const [draggedNode, setDraggedNode] = useState<{ id: string; offsetX: number; offsetY: number } | null>(null);
+  const [draggedNodes, setDraggedNodes] = useState<{ id: string; dragOffsetX: number; dragOffsetY: number }[]>([]);
+  const [selectionBox, setSelectionBox] = useState<{ startX: number; startY: number; currentX: number; currentY: number } | null>(null);
+  const [hoveredWireId, setHoveredWireId] = useState<string | null>(null);
   const [resizedNode, setResizedNode] = useState<{ id: string; startWidth: number; startHeight: number; startX: number; startY: number } | null>(null);
 
   // Convert screen coordinates to canvas grid coordinates
@@ -127,17 +130,32 @@ export const Canvas: React.FC<CanvasProps> = ({ circuit }) => {
     setTransform({ x: nextX, y: nextY, zoom: nextZoom });
   };
 
-  // Mousedown on Canvas background (for panning)
+  // Mousedown on Canvas background (for panning or marquee select)
   const handleCanvasMouseDown = (e: React.MouseEvent<SVGSVGElement>) => {
-    // Check if clicking background
     if (e.target === svgRef.current || (e.target as SVGElement).classList.contains('canvas-grid')) {
-      setIsPanning(true);
-      setPanStart({ x: e.clientX - transform.x, y: e.clientY - transform.y });
-      setSelectedNodeId(null);
+      const coords = getCanvasCoords(e.clientX, e.clientY);
+      
+      if (canvasMode === 'pan' || e.button === 1 || e.button === 2) {
+        setIsPanning(true);
+        setPanStart({ x: e.clientX - transform.x, y: e.clientY - transform.y });
+      } else {
+        // Selection Box start
+        setSelectionBox({
+          startX: coords.x,
+          startY: coords.y,
+          currentX: coords.x,
+          currentY: coords.y,
+        });
+        
+        // Clear selection unless Shift or Ctrl or Meta is held
+        if (!e.shiftKey && !e.ctrlKey && !e.metaKey) {
+          setSelectedNodeIds([]);
+        }
+      }
     }
   };
 
-  // Mousemove on Canvas (dragging nodes, panning, draft wires)
+  // Mousemove on Canvas (dragging nodes, selection box, panning, draft wires)
   const handleCanvasMouseMove = (e: React.MouseEvent<SVGSVGElement>) => {
     const coords = getCanvasCoords(e.clientX, e.clientY);
 
@@ -150,25 +168,53 @@ export const Canvas: React.FC<CanvasProps> = ({ circuit }) => {
       }));
     }
 
-    // 2. Drag Node
-    if (draggedNode) {
-      const snapGrid = 20;
-      const targetX = Math.round((coords.x - draggedNode.offsetX) / snapGrid) * snapGrid;
-      const targetY = Math.round((coords.y - draggedNode.offsetY) / snapGrid) * snapGrid;
-      moveNode(draggedNode.id, targetX, targetY);
+    // 2. Selection Box drag
+    if (selectionBox) {
+      setSelectionBox((prev) => (prev ? { ...prev, currentX: coords.x, currentY: coords.y } : null));
+      
+      const x = Math.min(selectionBox.startX, coords.x);
+      const y = Math.min(selectionBox.startY, coords.y);
+      const w = Math.abs(selectionBox.startX - coords.x);
+      const h = Math.abs(selectionBox.startY - coords.y);
+      
+      const overlappedIds: string[] = [];
+      nodes.forEach((node) => {
+        const nw = getNodeWidth(node);
+        const nh = getNodeHeight(node);
+        const nodeOverlaps = (
+          node.x < x + w &&
+          node.x + nw > x &&
+          node.y < y + h &&
+          node.y + nh > y
+        );
+        if (nodeOverlaps) {
+          overlappedIds.push(node.id);
+        }
+      });
+      setSelectedNodeIds(overlappedIds);
     }
 
-    // 4. Resize Node
+    // 3. Drag Group of Nodes
+    if (draggedNodes.length > 0) {
+      const updates = draggedNodes.map((dn) => {
+        const snapGrid = 20;
+        const targetX = Math.round((coords.x - dn.dragOffsetX) / snapGrid) * snapGrid;
+        const targetY = Math.round((coords.y - dn.dragOffsetY) / snapGrid) * snapGrid;
+        return { id: dn.id, x: targetX, y: targetY };
+      });
+      moveNodes(updates);
+    }
+
+    // 5. Resize Node
     if (resizedNode) {
       const dx = coords.x - resizedNode.startX;
       const dy = coords.y - resizedNode.startY;
-      // Allow grid snaps during resize as well
       const targetWidth = Math.max(80, Math.round((resizedNode.startWidth + dx) / 10) * 10);
       const targetHeight = Math.max(50, Math.round((resizedNode.startHeight + dy) / 10) * 10);
       resizeNode(resizedNode.id, targetWidth, targetHeight);
     }
 
-    // 3. Update Wire Draft Position
+    // 4. Update Wire Draft Position
     if (wireDraft) {
       setWireDraft({
         ...wireDraft,
@@ -181,7 +227,8 @@ export const Canvas: React.FC<CanvasProps> = ({ circuit }) => {
   // Mouseup on Canvas
   const handleCanvasMouseUp = () => {
     setIsPanning(false);
-    setDraggedNode(null);
+    setDraggedNodes([]);
+    setSelectionBox(null);
     setWireDraft(null);
     setResizedNode(null);
   };
@@ -251,7 +298,22 @@ export const Canvas: React.FC<CanvasProps> = ({ circuit }) => {
   // Node Drag Start
   const handleNodeMouseDown = (e: React.MouseEvent, node: Node) => {
     e.stopPropagation();
-    setSelectedNodeId(node.id);
+    
+    const isMulti = e.shiftKey || e.ctrlKey || e.metaKey;
+    let nextSelectedIds = [...selectedNodeIds];
+
+    if (isMulti) {
+      if (nextSelectedIds.includes(node.id)) {
+        nextSelectedIds = nextSelectedIds.filter((id) => id !== node.id);
+      } else {
+        nextSelectedIds.push(node.id);
+      }
+      setSelectedNodeIds(nextSelectedIds);
+    } else {
+      if (!selectedNodeIds.includes(node.id)) {
+        setSelectedNodeIds([node.id]);
+      }
+    }
 
     // If clicking a switch, button, clock controls, handle interaction
     const coords = getCanvasCoords(e.clientX, e.clientY);
@@ -274,11 +336,22 @@ export const Canvas: React.FC<CanvasProps> = ({ circuit }) => {
       return;
     }
 
-    setDraggedNode({
-      id: node.id,
-      offsetX: coords.x - node.x,
-      offsetY: coords.y - node.y,
-    });
+    // Prepare group dragging offsets
+    const activeDragSelection = isMulti
+      ? nextSelectedIds
+      : selectedNodeIds.includes(node.id)
+      ? selectedNodeIds
+      : [node.id];
+
+    const currentDragged = nodes
+      .filter((n) => activeDragSelection.includes(n.id))
+      .map((n) => ({
+        id: n.id,
+        dragOffsetX: coords.x - n.x,
+        dragOffsetY: coords.y - n.y,
+      }));
+
+    setDraggedNodes(currentDragged);
   };
 
   // Reset Zoom Control
@@ -365,15 +438,18 @@ export const Canvas: React.FC<CanvasProps> = ({ circuit }) => {
             const wireValue = fromNode.outputs.find((p) => p.id === conn.fromPinId)?.value ?? false;
 
             return (
-              <g key={conn.id} className="wire-container">
-                {/* Thick invisible hover stroke to make wires easy to double click */}
+              <g 
+                key={conn.id} 
+                className="wire-container"
+                onMouseEnter={() => setHoveredWireId(conn.id)}
+                onMouseLeave={() => setHoveredWireId(null)}
+              >
+                {/* Thick invisible hover stroke to make wires easy to click */}
                 <path
                   d={d}
                   className="wire-path-hover-box"
                   onDoubleClick={() => {
-                    if (confirm('Delete this wire connection?')) {
-                      deleteConnection(conn.id);
-                    }
+                    deleteConnection(conn.id);
                   }}
                 >
                   <title>Double click to delete connection</title>
@@ -383,6 +459,34 @@ export const Canvas: React.FC<CanvasProps> = ({ circuit }) => {
                   d={d}
                   className={`wire-path ${wireValue ? 'high' : 'low'}`}
                 />
+                {/* Signal Flow Particles */}
+                {wireValue && (
+                  <path
+                    d={d}
+                    className="wire-particles"
+                  />
+                )}
+                {/* Midpoint delete button on hover */}
+                {hoveredWireId === conn.id && (() => {
+                  const midX = 0.125 * fromPos.x + 0.375 * cx1 + 0.375 * cx2 + 0.125 * toPos.x;
+                  const midY = 0.125 * fromPos.y + 0.375 * cy1 + 0.375 * cy2 + 0.125 * toPos.y;
+                  return (
+                    <g
+                      className="wire-delete-group"
+                      transform={`translate(${midX}, ${midY})`}
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        deleteConnection(conn.id);
+                        setHoveredWireId(null);
+                      }}
+                    >
+                      <circle r="8.5" className="wire-delete-btn-bg" />
+                      <line x1="-3.5" y1="-3.5" x2="3.5" y2="3.5" className="wire-delete-btn-icon" />
+                      <line x1="3.5" y1="-3.5" x2="-3.5" y2="3.5" className="wire-delete-btn-icon" />
+                      <title>Delete connection</title>
+                    </g>
+                  );
+                })()}
               </g>
             );
           })}
@@ -415,7 +519,7 @@ export const Canvas: React.FC<CanvasProps> = ({ circuit }) => {
 
           {/* 3. RENDER GATE NODES */}
           {nodes.map((node) => {
-            const isSelected = node.id === selectedNodeId;
+            const isSelected = selectedNodeIds.includes(node.id);
             const width = getNodeWidth(node);
             const height = getNodeHeight(node);
             let customColor = '#B6E63A';
@@ -724,11 +828,49 @@ export const Canvas: React.FC<CanvasProps> = ({ circuit }) => {
               </g>
             );
           })}
+          {/* 6. RENDER SELECTION BOX OVERLAY */}
+          {selectionBox && (
+            <rect
+              x={Math.min(selectionBox.startX, selectionBox.currentX)}
+              y={Math.min(selectionBox.startY, selectionBox.currentY)}
+              width={Math.abs(selectionBox.startX - selectionBox.currentX)}
+              height={Math.abs(selectionBox.startY - selectionBox.currentY)}
+              fill="var(--accent-light)"
+              stroke="var(--accent)"
+              strokeWidth="1.5"
+              strokeDasharray="4, 4"
+              pointerEvents="none"
+            />
+          )}
         </g>
       </svg>
 
       {/* Floating Canvas Controls */}
       <div className="canvas-controls">
+        {/* Toggle Mode: Select vs Pan */}
+        <button 
+          className={`canvas-controls-btn ${canvasMode === 'select' ? 'primary' : ''}`} 
+          onClick={() => {
+            setCanvasMode('select');
+            setIsPanning(false);
+          }}
+          title="Select Mode (Draw marquee selection or select/move nodes)"
+        >
+          🔍 Select
+        </button>
+        <button 
+          className={`canvas-controls-btn ${canvasMode === 'pan' ? 'primary' : ''}`} 
+          onClick={() => {
+            setCanvasMode('pan');
+            setSelectionBox(null);
+          }}
+          title="Pan Mode (Click & drag canvas background to pan)"
+        >
+          🖐️ Pan
+        </button>
+        
+        <div style={{ width: '1px', height: '16px', backgroundColor: 'var(--border-color)', margin: '0 4px' }} />
+
         <button className="canvas-controls-btn" onClick={handleZoomIn} title="Zoom In">
           ➕
         </button>

@@ -25,6 +25,8 @@ export const Inspector: React.FC<InspectorProps> = ({ circuit }) => {
     setNodeLabel,
     setClockInterval,
     activeCustomGates,
+    probedNodeIds,
+    toggleProbeNode,
   } = circuit;
 
   const node = activeTab.state.nodes.find((n) => n.id === selectedNodeId);
@@ -146,6 +148,16 @@ export const Inspector: React.FC<InspectorProps> = ({ circuit }) => {
         })()}
 
         <div style={{ flex: 1 }} />
+
+        {/* Logic Analyzer Probe Button */}
+        <button
+          className={`probe-btn ${probedNodeIds.includes(node.id) ? 'active' : ''}`}
+          onClick={() => toggleProbeNode(node.id)}
+          style={{ width: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px', marginBottom: '8px' }}
+        >
+          <span>💻</span>
+          {probedNodeIds.includes(node.id) ? 'Remove Probe' : 'Probe Signal (Analyzer)'}
+        </button>
 
         {/* Delete Action Button */}
         <button

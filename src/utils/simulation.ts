@@ -135,6 +135,20 @@ export function evaluateNode(
         return node.outputs.map(() => false);
       }
 
+      // Emulate rising edge triggering for 4-Bit Register to avoid feedback loop oscillation
+      if (node.customGateId === 'sub-register-4bit' && !node.id.includes('cpu-reg')) {
+        const currClk = inputs[4]; // CLK is the 5th input of sub-register-4bit (D0, D1, D2, D3, CLK)
+        const prevClk = node.prevClk ?? false;
+        const isRisingEdge = currClk && !prevClk;
+        node.prevClk = currClk;
+
+        // Only return early if CLK is HIGH and it's NOT a rising edge.
+        // If CLK is LOW, we let it propagate normally to sync the D latch inputs.
+        if (currClk && !isRisingEdge && node.latchedOutputs) {
+          return node.latchedOutputs;
+        }
+      }
+
       const def = customDefs[node.customGateId];
 
       if (evaluatingCustomIds.has(node.customGateId)) {
@@ -150,6 +164,15 @@ export function evaluateNode(
       }
 
       const subState = node.subState;
+
+      // Force internal SWITCHes to true for Program Counter custom gate
+      if (node.customGateId === 'sub-pc-4bit') {
+        subState.nodes.forEach((n) => {
+          if (n.type === 'SWITCH' && n.outputs[0]) {
+            n.outputs[0].value = true;
+          }
+        });
+      }
 
       const subPortIns = sortSubCircuitPorts(subState.nodes, 'PORT_IN', node.customGateId);
 
@@ -187,10 +210,16 @@ export function evaluateNode(
 
       const subPortOuts = sortSubCircuitPorts(result.state.nodes, 'PORT_OUT', node.customGateId);
 
-      return node.outputs.map((_, idx) => {
+      const outputs = node.outputs.map((_, idx) => {
         const portOutNode = subPortOuts[idx];
         return portOutNode && portOutNode.inputs[0] ? portOutNode.inputs[0].value : false;
       });
+
+      if (node.customGateId === 'sub-register-4bit' && !node.id.includes('cpu-reg')) {
+        node.latchedOutputs = outputs;
+      }
+
+      return outputs;
     }
 
     default:

@@ -184,7 +184,7 @@ const MISSION_UNLOCK_MAP: Record<string, {
 };
 
 export const CurriculumDock: React.FC<CurriculumDockProps> = ({ circuit, onAddNode }) => {
-  const { activeMissionId, curriculumCustomGates } = circuit;
+  const { activeMissionId } = circuit;
 
   if (!activeMissionId) return null;
 
@@ -205,7 +205,7 @@ export const CurriculumDock: React.FC<CurriculumDockProps> = ({ circuit, onAddNo
 
   // Resolve custom gates that are unlocked
   const unlockedCustomGates = unlockInfo.custom
-    .map(id => curriculumCustomGates[id] || DEMO_CUSTOM_GATES[id])
+    .map(id => DEMO_CUSTOM_GATES[id])
     .filter((g): g is SubCircuitDefinition => !!g);
 
   return (

@@ -25,6 +25,9 @@ export const Header: React.FC<HeaderProps> = ({ circuit, onOpenCustomGateModal }
     deleteSubCircuitTab,
     showPinLabels,
     toggleShowPinLabels,
+    // Theme
+    theme,
+    toggleTheme,
     // Curriculum integrations
     appMode,
     setAppMode,
@@ -124,7 +127,7 @@ export const Header: React.FC<HeaderProps> = ({ circuit, onOpenCustomGateModal }
         {/* Dynamic header content based on mode */}
         {appMode === 'sandbox' ? (
           /* Tabs Manager for Sandbox Mode */
-          <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
+          <div className="tabs-manager-header">
             {tabs.map((tab) => (
               <div
                 key={tab.id}
@@ -132,7 +135,7 @@ export const Header: React.FC<HeaderProps> = ({ circuit, onOpenCustomGateModal }
                 onClick={() => setActiveTabId(tab.id)}
               >
                 <span>{tab.name}</span>
-                {tab.id !== 'main' && (
+                {tab.id !== 'main' && !tab.id.startsWith('sub-') && (
                   <button
                     className="tab-close"
                     onClick={(e) => {
@@ -147,7 +150,7 @@ export const Header: React.FC<HeaderProps> = ({ circuit, onOpenCustomGateModal }
                 )}
               </div>
             ))}
-            <button className="add-tab-btn" onClick={handleAddTab}>
+            <button className="add-tab-btn" style={{ flexShrink: 0 }} onClick={handleAddTab}>
               + Sub-circuit
             </button>
           </div>
@@ -200,6 +203,13 @@ export const Header: React.FC<HeaderProps> = ({ circuit, onOpenCustomGateModal }
           title="Toggle Input/Output Pin Labels on Custom Gates"
         >
           🏷️ {showPinLabels ? 'Pin Labels ON' : 'Pin Labels OFF'}
+        </button>
+
+        <button
+          onClick={toggleTheme}
+          title="Toggle between Light and Dark Teenage Engineering theme"
+        >
+          {theme === 'light' ? '🌙 Dark Mode' : '☀️ Light Mode'}
         </button>
 
         {/* Sandbox exclusive actions */}

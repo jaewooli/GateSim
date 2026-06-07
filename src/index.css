@@ -243,3 +243,226 @@ h1, h2, h3, h4 {
 .canvas-grid {
   fill: url(#grid-pattern);
 }
+
+/* --- Teenage Engineering Dark Theme --- */
+body.dark-theme {
+  --primary-bg: #141517;
+  --secondary-bg: #222428;
+  --accent: #B6E63A;
+  --accent-hover: #a1ce30;
+  --accent-light: rgba(182, 230, 58, 0.15);
+  --text-primary: #F5F6F8;
+  --text-muted: #8E9093;
+  --border-color: #32353A;
+  --logic-low: #32353A;
+  --logic-high: #B6E63A;
+  --shadow-soft: 0px 12px 32px rgba(0, 0, 0, 0.4);
+  --shadow-inset: inset 0px 2px 8px rgba(0, 0, 0, 0.3);
+}
+
+body.dark-theme button:hover {
+  background-color: #2D3035;
+  border-color: var(--text-muted);
+}
+
+body.dark-theme button:active {
+  background-color: var(--border-color);
+}
+
+body.dark-theme button.outline:hover {
+  background-color: var(--secondary-bg);
+}
+
+/* --- Signal Flow Particle Animation --- */
+@keyframes flow-particles {
+  to {
+    stroke-dashoffset: -20;
+  }
+}
+
+.wire-particles {
+  fill: none;
+  stroke: var(--accent);
+  stroke-width: 3.5;
+  stroke-dasharray: 5, 12;
+  animation: flow-particles 1.5s linear infinite;
+  pointer-events: none;
+  opacity: 0.9;
+  filter: drop-shadow(0px 0px 3px var(--accent));
+}
+
+/* --- Wire Delete Hover Button --- */
+.wire-delete-btn-bg {
+  fill: var(--secondary-bg);
+  stroke: var(--border-color);
+  stroke-width: 1.5;
+  cursor: pointer;
+  filter: drop-shadow(0px 2px 4px rgba(0, 0, 0, 0.1));
+}
+
+.wire-delete-btn-icon {
+  stroke: var(--text-primary);
+  stroke-width: 2;
+  stroke-linecap: round;
+  pointer-events: none;
+}
+
+.wire-delete-group:hover .wire-delete-btn-bg {
+  fill: #FF6B6B;
+  stroke: #FF6B6B;
+}
+
+.wire-delete-group:hover .wire-delete-btn-icon {
+  stroke: #FFFFFF;
+}
+
+/* --- Real-Time Logic Analyzer Panel --- */
+.analyzer-panel {
+  background-color: var(--secondary-bg);
+  border-top: 2px solid var(--border-color);
+  display: flex;
+  flex-direction: column;
+  color: var(--text-primary);
+  transition: height 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+  overflow: hidden;
+  position: relative;
+}
+
+.analyzer-header {
+  height: 40px;
+  min-height: 40px;
+  padding: 0 16px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  background-color: var(--primary-bg);
+  border-bottom: 1px solid var(--border-color);
+  cursor: pointer;
+  user-select: none;
+}
+
+.analyzer-title {
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: 0.05em;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.analyzer-controls {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.analyzer-body {
+  flex: 1;
+  padding: 16px;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.analyzer-row {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  height: 38px;
+}
+
+.analyzer-row-label {
+  width: 140px;
+  min-width: 140px;
+  font-size: 11px;
+  font-weight: 700;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding-right: 12px;
+  border-right: 1px solid var(--border-color);
+  height: 100%;
+}
+
+.analyzer-row-remove {
+  cursor: pointer;
+  opacity: 0.5;
+  font-size: 10px;
+  transition: opacity 0.15s ease, color 0.15s ease;
+  padding: 4px;
+}
+.analyzer-row-remove:hover {
+  opacity: 1;
+  color: #FF5555;
+}
+
+.analyzer-wave-container {
+  flex: 1;
+  height: 100%;
+  background-color: var(--primary-bg);
+  border-radius: var(--border-radius-sm);
+  position: relative;
+  overflow: hidden;
+  border: 1px solid var(--border-color);
+}
+
+.analyzer-svg {
+  width: 100%;
+  height: 100%;
+}
+
+.analyzer-grid-line {
+  stroke: var(--border-color);
+  stroke-width: 0.5;
+  stroke-dasharray: 2, 4;
+}
+
+.analyzer-signal-path {
+  fill: none;
+  stroke: var(--accent);
+  stroke-width: 2.5;
+  stroke-linejoin: round;
+  stroke-linecap: round;
+}
+
+.analyzer-signal-path.low {
+  stroke: var(--text-muted);
+}
+
+.analyzer-empty {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  height: 100%;
+  color: var(--text-muted);
+  font-size: 12px;
+  font-style: italic;
+  padding: 32px 0;
+  gap: 8px;
+}
+
+.probe-btn {
+  font-size: 10px;
+  padding: 5px 10px;
+  border-radius: var(--border-radius-sm);
+  background-color: var(--secondary-bg);
+  border: 1px solid var(--border-color);
+  color: var(--text-primary);
+  font-weight: 700;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+.probe-btn:hover {
+  border-color: var(--text-muted);
+  transform: translateY(-1px);
+}
+.probe-btn.active {
+  background-color: var(--accent-light);
+  border-color: var(--accent);
+  color: var(--text-primary);
+}

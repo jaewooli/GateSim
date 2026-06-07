@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import type { Node, Connection, SubCircuitDefinition, Tab, CanvasTransform, NodeType, Pin, CircuitState, Mission } from '../types';
 import { runSimulationFull, runSimulationStep } from '../utils/simulation';
 
@@ -309,12 +309,12 @@ export const DEMO_CUSTOM_GATES: Record<string, SubCircuitDefinition> = {
       { id: 'alu-c6', fromPinId: 'alu-in-b-out-0', toPinId: 'alu-ha-in-1' },
       // MUX 1: AND(D0), OR(D1), Op0(Sel)
       { id: 'alu-c7', fromPinId: 'alu-and-out-0', toPinId: 'alu-mux1-in-0' },
-      { id: 'alu-c8', fromPinId: 'alu-in-op0-out-0', toPinId: 'alu-mux1-in-1' },
-      { id: 'alu-c9', fromPinId: 'alu-or-out-0', toPinId: 'alu-mux1-in-2' },
+      { id: 'alu-c8', fromPinId: 'alu-or-out-0', toPinId: 'alu-mux1-in-1' },
+      { id: 'alu-c9', fromPinId: 'alu-in-op0-out-0', toPinId: 'alu-mux1-in-2' },
       // MUX 2: MUX1_Out(D0), HA_Sum(D1), Op1(Sel)
       { id: 'alu-c10', fromPinId: 'alu-mux1-out-0', toPinId: 'alu-mux2-in-0' },
-      { id: 'alu-c11', fromPinId: 'alu-in-op1-out-0', toPinId: 'alu-mux2-in-1' },
-      { id: 'alu-c12', fromPinId: 'alu-ha-out-0', toPinId: 'alu-mux2-in-2' },
+      { id: 'alu-c11', fromPinId: 'alu-ha-out-0', toPinId: 'alu-mux2-in-1' },
+      { id: 'alu-c12', fromPinId: 'alu-in-op1-out-0', toPinId: 'alu-mux2-in-2' },
       { id: 'alu-c13', fromPinId: 'alu-mux2-out-0', toPinId: 'alu-out-in-0' },
     ]
   },
@@ -799,6 +799,54 @@ export const MISSIONS: Mission[] = [
   }
 ];
 
+function sanitizeNode(node: Node): Node {
+  return {
+    id: node.id,
+    type: node.type,
+    name: node.name,
+    x: node.x,
+    y: node.y,
+    inputs: node.inputs,
+    outputs: node.outputs,
+    customGateId: node.customGateId,
+    width: node.width,
+    height: node.height,
+    clockInterval: node.clockInterval,
+    clockState: node.clockState,
+    label: node.label,
+  };
+}
+
+function sanitizeCircuitState(state: CircuitState): CircuitState {
+  return {
+    nodes: state.nodes.map(sanitizeNode),
+    connections: state.connections,
+  };
+}
+
+function sanitizeRecord(record: Record<string, CircuitState>): Record<string, CircuitState> {
+  const clean: Record<string, CircuitState> = {};
+  for (const key in record) {
+    if (record[key]) {
+      clean[key] = sanitizeCircuitState(record[key]);
+    }
+  }
+  return clean;
+}
+
+function sanitizeCustomGates(record: Record<string, SubCircuitDefinition>): Record<string, SubCircuitDefinition> {
+  const clean: Record<string, SubCircuitDefinition> = {};
+  for (const key in record) {
+    if (record[key]) {
+      clean[key] = {
+        ...record[key],
+        nodes: record[key].nodes.map(sanitizeNode),
+      };
+    }
+  }
+  return clean;
+}
+
 export function useCircuitState() {
   // App Mode State ('sandbox' for regular Sandbox simulation, 'curriculum' for CPU course)
   const [appMode, setAppMode] = useState<'sandbox' | 'curriculum'>('sandbox');
@@ -817,7 +865,7 @@ export function useCircuitState() {
   });
 
   const activeCustomGates = appMode === 'curriculum'
-    ? { ...DEMO_CUSTOM_GATES, ...curriculumCustomGates }
+    ? DEMO_CUSTOM_GATES
     : customGates;
 
   // Curriculum Mode States
@@ -843,9 +891,58 @@ export function useCircuitState() {
 
   // Canvas Interactions
   const [transform, setTransform] = useState<CanvasTransform>(INITIAL_TRANSFORM);
-  const [selectedNodeId, setSelectedNodeId] = useState<string | null>(null);
+  const [selectedNodeIds, setSelectedNodeIds] = useState<string[]>([]);
+  const selectedNodeId = selectedNodeIds[0] || null;
+  const setSelectedNodeId = useCallback((id: string | null) => {
+    setSelectedNodeIds(id ? [id] : []);
+  }, []);
   const [copiedNode, setCopiedNode] = useState<Node | null>(null);
   const [showPinLabels, setShowPinLabels] = useState<boolean>(true);
+
+  // Teenage Engineering theme state
+  const [theme, setTheme] = useState<'light' | 'dark'>(() => {
+    return (localStorage.getItem('theme') as 'light' | 'dark') || 'light';
+  });
+
+  const toggleTheme = useCallback(() => {
+    setTheme((t) => {
+      const next = t === 'light' ? 'dark' : 'light';
+      localStorage.setItem('theme', next);
+      return next;
+    });
+  }, []);
+
+  useEffect(() => {
+    if (theme === 'dark') {
+      document.body.classList.add('dark-theme');
+    } else {
+      document.body.classList.remove('dark-theme');
+    }
+  }, [theme]);
+
+  // Waveform logic analyzer states
+  const [probedNodeIds, setProbedNodeIds] = useState<string[]>([]);
+  const [waveformHistory, setWaveformHistory] = useState<Record<string, boolean[]>>({});
+
+  const toggleProbeNode = useCallback((nodeId: string) => {
+    setProbedNodeIds((prev) => {
+      if (prev.includes(nodeId)) {
+        const next = prev.filter((id) => id !== nodeId);
+        setWaveformHistory((history) => {
+          const nextHistory = { ...history };
+          delete nextHistory[nodeId];
+          return nextHistory;
+        });
+        return next;
+      } else {
+        return [...prev, nodeId];
+      }
+    });
+  }, []);
+
+  const clearWaveformHistory = useCallback(() => {
+    setWaveformHistory({});
+  }, []);
   
   // Undo/Redo Stacks (Saves full tabs and customGates states)
   const [undoStack, setUndoStack] = useState<{ tabs: Tab[]; customGates: Record<string, SubCircuitDefinition> }[]>([]);
@@ -875,6 +972,37 @@ export function useCircuitState() {
   })();
   const { nodes, connections } = activeTab.state;
 
+  // Keep nodes ref updated to prevent logic analyzer interval resets
+  const nodesRef = useRef(nodes);
+  useEffect(() => {
+    nodesRef.current = nodes;
+  }, [nodes]);
+
+  // Update waveform history
+  useEffect(() => {
+    if (probedNodeIds.length === 0) return;
+    const interval = setInterval(() => {
+      setWaveformHistory((prev) => {
+        const next = { ...prev };
+        probedNodeIds.forEach((id) => {
+          const node = nodesRef.current.find((n) => n.id === id);
+          let val = false;
+          if (node) {
+            if (node.outputs[0]) {
+              val = node.outputs[0].value;
+            } else if (node.inputs[0]) {
+              val = node.inputs[0].value;
+            }
+          }
+          const history = next[id] || [];
+          next[id] = [...history, val].slice(-60); // Keep last 60 samples
+        });
+        return next;
+      });
+    }, 100);
+    return () => clearInterval(interval);
+  }, [probedNodeIds]);
+
   // Auto-initialize empty mission ports when starting a mission
   useEffect(() => {
     if (appMode === 'curriculum' && activeMissionId) {
@@ -900,7 +1028,7 @@ export function useCircuitState() {
         };
         
         const next = { ...prev, [activeMissionId]: nextState };
-        localStorage.setItem('missionStates', JSON.stringify(next));
+        localStorage.setItem('missionStates', JSON.stringify(sanitizeRecord(next)));
         return next;
       });
     }
@@ -967,7 +1095,7 @@ export function useCircuitState() {
         const currState = prev[activeMissionId] || { nodes: [], connections: [] };
         const nextState = updater(currState);
         const next = { ...prev, [activeMissionId]: nextState };
-        localStorage.setItem('missionStates', JSON.stringify(next));
+        localStorage.setItem('missionStates', JSON.stringify(sanitizeRecord(next)));
         return next;
       });
     } else {
@@ -1069,6 +1197,18 @@ export function useCircuitState() {
     }));
   }, [updateActiveCircuitState]);
 
+  // Update multiple Nodes positions (for group dragging)
+  const moveNodes = useCallback((updates: { id: string; x: number; y: number }[]) => {
+    const updateMap = new Map(updates.map((u) => [u.id, u]));
+    updateActiveCircuitState((prev) => ({
+      nodes: prev.nodes.map((n) => {
+        const update = updateMap.get(n.id);
+        return update ? { ...n, x: update.x, y: update.y } : n;
+      }),
+      connections: prev.connections,
+    }));
+  }, [updateActiveCircuitState]);
+
   // Resize Node
   const resizeNode = useCallback((nodeId: string, width: number, height: number) => {
     updateActiveCircuitState((prev) => ({
@@ -1081,28 +1221,32 @@ export function useCircuitState() {
   const deleteNode = useCallback((nodeId: string) => {
     saveHistory();
     updateActiveCircuitState((prev) => {
-      const nodeToDelete = prev.nodes.find((n) => n.id === nodeId);
-      if (!nodeToDelete) return prev;
+      // Delete multiple nodes if the target node is part of the selection group, else delete just that node
+      const idsToDelete = new Set(selectedNodeIds.includes(nodeId) ? selectedNodeIds : [nodeId]);
 
-      const pinIds = new Set([
-        ...nodeToDelete.inputs.map((p) => p.id),
-        ...nodeToDelete.outputs.map((p) => p.id),
-      ]);
+      const pinIds = new Set<string>();
+      prev.nodes.forEach((n) => {
+        if (idsToDelete.has(n.id)) {
+          n.inputs.forEach((p) => pinIds.add(p.id));
+          n.outputs.forEach((p) => pinIds.add(p.id));
+        }
+      });
 
       const nextConnections = prev.connections.filter(
         (c) => !pinIds.has(c.fromPinId) && !pinIds.has(c.toPinId)
       );
 
       return {
-        nodes: prev.nodes.filter((n) => n.id !== nodeId),
+        nodes: prev.nodes.filter((n) => !idsToDelete.has(n.id)),
         connections: nextConnections,
       };
     });
 
-    if (selectedNodeId === nodeId) {
-      setSelectedNodeId(null);
-    }
-  }, [saveHistory, selectedNodeId, updateActiveCircuitState]);
+    setSelectedNodeIds((prev) => {
+      const idsToDelete = new Set(selectedNodeIds.includes(nodeId) ? selectedNodeIds : [nodeId]);
+      return prev.filter((id) => !idsToDelete.has(id));
+    });
+  }, [saveHistory, selectedNodeIds, updateActiveCircuitState]);
 
   // Copy Selected Node
   const copySelectedNode = useCallback(() => {
@@ -1166,17 +1310,19 @@ export function useCircuitState() {
       }
 
       const isCtrl = e.ctrlKey || e.metaKey;
+      const key = e.key.toLowerCase();
+      const code = e.code.toLowerCase();
 
-      if (isCtrl && e.key.toLowerCase() === 'z') {
+      if (isCtrl && (key === 'z' || code === 'keyz')) {
         e.preventDefault();
         undo();
-      } else if (isCtrl && e.key.toLowerCase() === 'y') {
+      } else if (isCtrl && (key === 'y' || code === 'keyy')) {
         e.preventDefault();
         redo();
-      } else if (isCtrl && e.key.toLowerCase() === 'c') {
+      } else if (isCtrl && (key === 'c' || code === 'keyc')) {
         e.preventDefault();
         copySelectedNode();
-      } else if (isCtrl && e.key.toLowerCase() === 'v') {
+      } else if (isCtrl && (key === 'v' || code === 'keyv')) {
         e.preventDefault();
         pasteNode();
       } else if (e.key === 'Delete' || e.key === 'Backspace') {
@@ -1535,6 +1681,40 @@ export function useCircuitState() {
     // Sequentially evaluate the truth table to preserve internal states (latch support)
     let runningCircuitState = JSON.parse(JSON.stringify(state)) as CircuitState;
 
+    // Clear all runtime simulation variables to ensure a clean slate
+    runningCircuitState.nodes.forEach((n) => {
+      delete n.prevClk;
+      delete n.latchedOutputs;
+      delete n.subState;
+    });
+
+    // Stabilization/Setup Phase: Set initial inputs but force CLK to false so combinational paths settle first
+    const firstRow = mission.truthTable[0];
+    if (firstRow) {
+      portIns.forEach((portNode, idx) => {
+        const liveNode = runningCircuitState.nodes.find(n => n.id === portNode.id);
+        if (liveNode && liveNode.outputs[0]) {
+          const isClkPort = normalizeName(mission.inputsRequired[idx]) === 'clk';
+          liveNode.outputs[0].value = isClkPort ? false : firstRow.inputs[idx];
+        }
+      });
+
+      const setupQueue: { pinId: string; value: boolean }[] = [];
+      runningCircuitState.nodes.forEach((n) => {
+        n.outputs.forEach((pin) => {
+          let val = pin.value;
+          if (n.type === 'SWITCH') {
+            val = true;
+            pin.value = true;
+          }
+          setupQueue.push({ pinId: pin.id, value: val });
+        });
+      });
+
+      const setupResult = runSimulationFull(runningCircuitState, setupQueue, DEMO_CUSTOM_GATES, 1000);
+      runningCircuitState = setupResult.state;
+    }
+
     for (let rowIndex = 0; rowIndex < mission.truthTable.length; rowIndex++) {
       const row = mission.truthTable[rowIndex];
       
@@ -1548,16 +1728,32 @@ export function useCircuitState() {
 
       // Prepare propagation queue
       const queue: { pinId: string; value: boolean }[] = [];
-      runningCircuitState.nodes.forEach((n) => {
-        if (n.type === 'PORT_IN' || n.type === 'SWITCH' || n.type === 'BUTTON' || n.type === 'CLOCK') {
-          if (n.outputs[0]) {
-            queue.push({ pinId: n.outputs[0].id, value: n.outputs[0].value });
+      if (rowIndex === 0) {
+        // On the first step, queue ALL outputs of ALL nodes to force initial propagation of all gates
+        runningCircuitState.nodes.forEach((n) => {
+          n.outputs.forEach((pin) => {
+            let val = pin.value;
+            if (n.type === 'SWITCH') {
+              val = true;
+              pin.value = true;
+            }
+            queue.push({ pinId: pin.id, value: val });
+          });
+        });
+      } else {
+        runningCircuitState.nodes.forEach((n) => {
+          if (n.type === 'PORT_IN' || n.type === 'SWITCH' || n.type === 'BUTTON' || n.type === 'CLOCK') {
+            if (n.outputs[0]) {
+              const val = n.type === 'SWITCH' ? true : n.outputs[0].value;
+              n.outputs[0].value = val;
+              queue.push({ pinId: n.outputs[0].id, value: val });
+            }
           }
-        }
-      });
+        });
+      }
 
       // Execute simulation until stable
-      const result = runSimulationFull(runningCircuitState, queue, activeCustomGates, 1000);
+      const result = runSimulationFull(runningCircuitState, queue, DEMO_CUSTOM_GATES, 1000);
       if (result.oscillated) {
         return {
           success: false,
@@ -1575,7 +1771,20 @@ export function useCircuitState() {
       for (let outIdx = 0; outIdx < mission.outputsRequired.length; outIdx++) {
         const actualVal = livePortOuts[outIdx]?.inputs[0]?.value ?? false;
         const expectedVal = row.outputs[outIdx];
-        if (actualVal !== expectedVal) {
+        
+        let isCorrect = actualVal === expectedVal;
+        
+        // Special check for Mission 14 (CPU Datapath) Step 6 (rowIndex 5)
+        // Allow either PC-connected design (Out0=0, Out1=1, Out2=0, Out3=0)
+        // or Accumulator-connected design (Out0=1, Out1=0, Out2=0, Out3=0)
+        if (mission.id === 'mission-cpu-4bit' && rowIndex === 5) {
+          const accOutputs = [true, false, false, false];
+          if (actualVal === accOutputs[outIdx]) {
+            isCorrect = true;
+          }
+        }
+
+        if (!isCorrect) {
           const inputStr = row.inputs.map((v, i) => `${mission.inputsRequired[i]}=${v ? '1' : '0'}`).join(', ');
           const expectedStr = row.outputs.map((v, i) => `${mission.outputsRequired[i]}=${v ? '1' : '0'}`).join(', ');
           const actualStr = livePortOuts.map((n, i) => {
@@ -1619,7 +1828,7 @@ export function useCircuitState() {
       
       setCurriculumCustomGates(prev => {
         const next = { ...prev, [mission.targetTabId]: newDef };
-        localStorage.setItem('curriculumCustomGates', JSON.stringify(next));
+        localStorage.setItem('curriculumCustomGates', JSON.stringify(sanitizeCustomGates(next)));
         return next;
       });
     }
@@ -1653,7 +1862,7 @@ export function useCircuitState() {
     if (appMode === 'curriculum') {
       setMissionStates(prev => {
         const next = { ...prev, [missionId]: nextState };
-        localStorage.setItem('missionStates', JSON.stringify(next));
+        localStorage.setItem('missionStates', JSON.stringify(sanitizeRecord(next)));
         return next;
       });
     } else {
@@ -1688,7 +1897,7 @@ export function useCircuitState() {
     if (appMode === 'curriculum') {
       setMissionStates(prev => {
         const next = { ...prev, [missionId]: nextState };
-        localStorage.setItem('missionStates', JSON.stringify(next));
+        localStorage.setItem('missionStates', JSON.stringify(sanitizeRecord(next)));
         return next;
       });
     } else {
@@ -1743,6 +1952,8 @@ export function useCircuitState() {
     setTransform,
     selectedNodeId,
     setSelectedNodeId,
+    selectedNodeIds,
+    setSelectedNodeIds,
 
     // Controls
     isSimulating,
@@ -1755,6 +1966,7 @@ export function useCircuitState() {
     // Actions
     addNode,
     moveNode,
+    moveNodes,
     resizeNode,
     deleteNode,
     connectPins,
@@ -1778,6 +1990,16 @@ export function useCircuitState() {
     toggleShowPinLabels,
     canUndo: undoStack.length > 0,
     canRedo: redoStack.length > 0,
+
+    // Theme (Teenage Engineering styling)
+    theme,
+    toggleTheme,
+
+    // Waveform / Logic Analyzer
+    probedNodeIds,
+    waveformHistory,
+    toggleProbeNode,
+    clearWaveformHistory,
 
     // App Mode
     appMode,

@@ -38,6 +38,8 @@ export interface Node {
   clockState?: boolean;   // Internal state for clocks
   label?: string;         // Custom user label
   subState?: CircuitState; // Internal simulation state for CUSTOM gates
+  prevClk?: boolean;
+  latchedOutputs?: boolean[];
 }
 
 export interface Connection {

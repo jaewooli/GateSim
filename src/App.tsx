@@ -5,6 +5,7 @@ import Sidebar from './components/Sidebar';
 import Canvas from './components/Canvas';
 import Inspector from './components/Inspector';
 import CurriculumDock from './components/CurriculumDock';
+import WaveformViewer from './components/WaveformViewer';
 import CreateCustomGateModal from './components/CreateCustomGateModal';
 import './App.css';
 
@@ -54,6 +55,7 @@ function App() {
         {/* Center Canvas with overlay Dock */}
         <div style={{ flex: 1, position: 'relative', height: '100%', display: 'flex', flexDirection: 'column' }}>
           <Canvas circuit={circuit} />
+          <WaveformViewer circuit={circuit} />
           {circuit.appMode === 'curriculum' && (
             <CurriculumDock
               circuit={circuit}
