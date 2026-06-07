@@ -6,6 +6,10 @@ const PRESET_DESCRIPTIONS: Record<string, string> = {
   'sub-half-adder': 'Half Adder: Computes the sum of two 1-bit binary inputs (A and B). It outputs the Sum (S) and a Carry (C) bit. Double-click this component on the canvas to inspect or edit its internal XOR and AND gate layout.',
   'sub-mux': '2-to-1 Multiplexer (MUX): Selects one of two data inputs (D0 or D1) based on a Select control input. If Select=0, D0 is routed to Out; if Select=1, D1 is routed to Out. Double-click this component on the canvas to inspect its gates.',
   'sub-sr-latch': 'SR Latch: A fundamental memory cell. Set (S) forces the Q output HIGH, and Reset (R) resets it to LOW. When both are LOW, it retains its previous logic state. Double-click to inspect its cross-coupled NOR gate feedback loop.',
+  'sub-nand': 'NAND Gate: A derived universal gate. Built by combining a basic AND gate followed by a NOT inverter. Outputs LOW only if all inputs are HIGH. Double-click to inspect its components.',
+  'sub-nor': 'NOR Gate: A derived universal gate. Built by combining a basic OR gate followed by a NOT inverter. Outputs HIGH only if all inputs are LOW. Double-click to inspect its components.',
+  'sub-xor': 'XOR (Exclusive OR) Gate: Built using NOT, AND, and OR gates. Outputs HIGH if and only if the inputs are different. Double-click to inspect how its fundamental gates are stacked.',
+  'sub-xnor': 'XNOR (Exclusive NOR) Gate: Built using NOT, AND, and OR gates. Outputs HIGH if inputs are identical. Double-click to inspect its fundamental gate structure.',
 };
 
 interface InspectorProps {
@@ -39,7 +43,8 @@ export const Inspector: React.FC<InspectorProps> = ({ circuit }) => {
   // Helper to format types nicely
   const getReadableType = (n: Node) => {
     if (n.type === 'CUSTOM') {
-      if (n.customGateId && ['sub-half-adder', 'sub-sr-latch', 'sub-mux'].includes(n.customGateId)) {
+      const presets = ['sub-half-adder', 'sub-sr-latch', 'sub-mux', 'sub-nand', 'sub-nor', 'sub-xor', 'sub-xnor'];
+      if (n.customGateId && presets.includes(n.customGateId)) {
         return 'Advanced Block';
       }
       return 'Custom Gate';

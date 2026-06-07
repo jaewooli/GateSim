@@ -136,6 +136,104 @@ const DEMO_TABS: Tab[] = [
       ],
     },
   },
+  // 5. NAND Preset
+  {
+    id: 'sub-nand',
+    name: 'NAND Gate',
+    state: {
+      nodes: [
+        createDemoNode('nand-in-a', 'PORT_IN', 'IN PORT', 60, 80, 0, 1, undefined, 'A'),
+        createDemoNode('nand-in-b', 'PORT_IN', 'IN PORT', 60, 200, 0, 1, undefined, 'B'),
+        createDemoNode('nand-and', 'AND', 'AND', 240, 130, 2, 1),
+        createDemoNode('nand-not', 'NOT', 'NOT', 420, 130, 1, 1),
+        createDemoNode('nand-out', 'PORT_OUT', 'OUT PORT', 600, 130, 1, 0, undefined, 'Out'),
+      ],
+      connections: [
+        { id: 'nand-conn-1', fromPinId: 'nand-in-a-out-0', toPinId: 'nand-and-in-0' },
+        { id: 'nand-conn-2', fromPinId: 'nand-in-b-out-0', toPinId: 'nand-and-in-1' },
+        { id: 'nand-conn-3', fromPinId: 'nand-and-out-0', toPinId: 'nand-not-in-0' },
+        { id: 'nand-conn-4', fromPinId: 'nand-not-out-0', toPinId: 'nand-out-in-0' },
+      ],
+    },
+  },
+  // 6. NOR Preset
+  {
+    id: 'sub-nor',
+    name: 'NOR Gate',
+    state: {
+      nodes: [
+        createDemoNode('nor-in-a', 'PORT_IN', 'IN PORT', 60, 80, 0, 1, undefined, 'A'),
+        createDemoNode('nor-in-b', 'PORT_IN', 'IN PORT', 60, 200, 0, 1, undefined, 'B'),
+        createDemoNode('nor-or', 'OR', 'OR', 240, 130, 2, 1),
+        createDemoNode('nor-not', 'NOT', 'NOT', 420, 130, 1, 1),
+        createDemoNode('nor-out', 'PORT_OUT', 'OUT PORT', 600, 130, 1, 0, undefined, 'Out'),
+      ],
+      connections: [
+        { id: 'nor-conn-1', fromPinId: 'nor-in-a-out-0', toPinId: 'nor-or-in-0' },
+        { id: 'nor-conn-2', fromPinId: 'nor-in-b-out-0', toPinId: 'nor-or-in-1' },
+        { id: 'nor-conn-3', fromPinId: 'nor-or-out-0', toPinId: 'nor-not-in-0' },
+        { id: 'nor-conn-4', fromPinId: 'nor-not-out-0', toPinId: 'nor-out-in-0' },
+      ],
+    },
+  },
+  // 7. XOR Preset
+  {
+    id: 'sub-xor',
+    name: 'XOR Gate',
+    state: {
+      nodes: [
+        createDemoNode('xor-in-a', 'PORT_IN', 'IN PORT', 60, 80, 0, 1, undefined, 'A'),
+        createDemoNode('xor-in-b', 'PORT_IN', 'IN PORT', 60, 240, 0, 1, undefined, 'B'),
+        createDemoNode('xor-not-a', 'NOT', 'NOT', 200, 80, 1, 1),
+        createDemoNode('xor-not-b', 'NOT', 'NOT', 200, 240, 1, 1),
+        createDemoNode('xor-and-1', 'AND', 'AND', 360, 60, 2, 1),
+        createDemoNode('xor-and-2', 'AND', 'AND', 360, 220, 2, 1),
+        createDemoNode('xor-or', 'OR', 'OR', 520, 140, 2, 1),
+        createDemoNode('xor-out', 'PORT_OUT', 'OUT PORT', 680, 140, 1, 0, undefined, 'Out'),
+      ],
+      connections: [
+        { id: 'xor-conn-1', fromPinId: 'xor-in-a-out-0', toPinId: 'xor-not-a-in-0' },
+        { id: 'xor-conn-2', fromPinId: 'xor-in-b-out-0', toPinId: 'xor-not-b-in-0' },
+        { id: 'xor-conn-3', fromPinId: 'xor-in-a-out-0', toPinId: 'xor-and-1-in-0' },
+        { id: 'xor-conn-4', fromPinId: 'xor-not-b-out-0', toPinId: 'xor-and-1-in-1' },
+        { id: 'xor-conn-5', fromPinId: 'xor-not-a-out-0', toPinId: 'xor-and-2-in-0' },
+        { id: 'xor-conn-6', fromPinId: 'xor-in-b-out-0', toPinId: 'xor-and-2-in-1' },
+        { id: 'xor-conn-7', fromPinId: 'xor-and-1-out-0', toPinId: 'xor-or-in-0' },
+        { id: 'xor-conn-8', fromPinId: 'xor-and-2-out-0', toPinId: 'xor-or-in-1' },
+        { id: 'xor-conn-9', fromPinId: 'xor-or-out-0', toPinId: 'xor-out-in-0' },
+      ],
+    },
+  },
+  // 8. XNOR Preset
+  {
+    id: 'sub-xnor',
+    name: 'XNOR Gate',
+    state: {
+      nodes: [
+        createDemoNode('xnor-in-a', 'PORT_IN', 'IN PORT', 60, 80, 0, 1, undefined, 'A'),
+        createDemoNode('xnor-in-b', 'PORT_IN', 'IN PORT', 60, 240, 0, 1, undefined, 'B'),
+        createDemoNode('xnor-not-a', 'NOT', 'NOT', 200, 80, 1, 1),
+        createDemoNode('xnor-not-b', 'NOT', 'NOT', 200, 240, 1, 1),
+        createDemoNode('xnor-and-1', 'AND', 'AND', 360, 60, 2, 1),
+        createDemoNode('xnor-and-2', 'AND', 'AND', 360, 220, 2, 1),
+        createDemoNode('xnor-or', 'OR', 'OR', 520, 140, 2, 1),
+        createDemoNode('xnor-not-out', 'NOT', 'NOT', 660, 140, 1, 1),
+        createDemoNode('xnor-out', 'PORT_OUT', 'OUT PORT', 800, 140, 1, 0, undefined, 'Out'),
+      ],
+      connections: [
+        { id: 'xnor-conn-1', fromPinId: 'xnor-in-a-out-0', toPinId: 'xnor-not-a-in-0' },
+        { id: 'xnor-conn-2', fromPinId: 'xnor-in-b-out-0', toPinId: 'xnor-not-b-in-0' },
+        { id: 'xnor-conn-3', fromPinId: 'xnor-in-a-out-0', toPinId: 'xnor-and-1-in-0' },
+        { id: 'xnor-conn-4', fromPinId: 'xnor-not-b-out-0', toPinId: 'xnor-and-1-in-1' },
+        { id: 'xnor-conn-5', fromPinId: 'xnor-not-a-out-0', toPinId: 'xnor-and-2-in-0' },
+        { id: 'xnor-conn-6', fromPinId: 'xnor-in-b-out-0', toPinId: 'xnor-and-2-in-1' },
+        { id: 'xnor-conn-7', fromPinId: 'xnor-and-1-out-0', toPinId: 'xnor-or-in-0' },
+        { id: 'xnor-conn-8', fromPinId: 'xnor-and-2-out-0', toPinId: 'xnor-or-in-1' },
+        { id: 'xnor-conn-9', fromPinId: 'xnor-or-out-0', toPinId: 'xnor-not-out-in-0' },
+        { id: 'xnor-conn-10', fromPinId: 'xnor-not-out-out-0', toPinId: 'xnor-out-in-0' },
+      ],
+    },
+  },
 ];
 
 const DEMO_CUSTOM_GATES: Record<string, SubCircuitDefinition> = {
@@ -159,6 +257,34 @@ const DEMO_CUSTOM_GATES: Record<string, SubCircuitDefinition> = {
     color: '#3A86F0',
     nodes: DEMO_TABS[3].state.nodes,
     connections: DEMO_TABS[3].state.connections,
+  },
+  'sub-nand': {
+    id: 'sub-nand',
+    name: 'NAND_GATE',
+    color: '#9E00FF',
+    nodes: DEMO_TABS[4].state.nodes,
+    connections: DEMO_TABS[4].state.connections,
+  },
+  'sub-nor': {
+    id: 'sub-nor',
+    name: 'NOR_GATE',
+    color: '#FF007A',
+    nodes: DEMO_TABS[5].state.nodes,
+    connections: DEMO_TABS[5].state.connections,
+  },
+  'sub-xor': {
+    id: 'sub-xor',
+    name: 'XOR_GATE',
+    color: '#00D1FF',
+    nodes: DEMO_TABS[6].state.nodes,
+    connections: DEMO_TABS[6].state.connections,
+  },
+  'sub-xnor': {
+    id: 'sub-xnor',
+    name: 'XNOR_GATE',
+    color: '#FFB800',
+    nodes: DEMO_TABS[7].state.nodes,
+    connections: DEMO_TABS[7].state.connections,
   },
 };
 

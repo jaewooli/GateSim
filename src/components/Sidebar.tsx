@@ -115,63 +115,6 @@ export const Sidebar: React.FC<SidebarProps> = ({ onAddNode, customGates, active
         </svg>
       ),
     },
-    {
-      type: 'XOR',
-      name: 'XOR Gate',
-      description: 'Outputs HIGH if inputs are different',
-      icon: (
-        <svg viewBox="0 0 40 20" className="toolbox-item-icon">
-          <path d="M 10 4 C 13 4, 16 4, 19 4 C 23 4, 28 8, 30 10 C 28 12, 23 16, 19 16 C 16 16, 13 16, 10 16 C 12 12, 12 8, 10 4 Z" fill="none" stroke="#1A1A1A" strokeWidth="1.5" />
-          <path d="M 7 4 C 9 8, 9 12, 7 16" fill="none" stroke="#1A1A1A" strokeWidth="1.5" />
-          <line x1="3" y1="7" x2="9" y2="7" stroke="#1A1A1A" strokeWidth="1.5" />
-          <line x1="3" y1="13" x2="9" y2="13" stroke="#1A1A1A" strokeWidth="1.5" />
-          <line x1="30" y1="10" x2="35" y2="10" stroke="#1A1A1A" strokeWidth="1.5" />
-        </svg>
-      ),
-    },
-    {
-      type: 'NAND',
-      name: 'NAND Gate',
-      description: 'Outputs LOW only if all inputs are HIGH',
-      icon: (
-        <svg viewBox="0 0 40 20" className="toolbox-item-icon">
-          <path d="M 8 4 L 16 4 C 21 4, 25 8, 25 10 C 25 12, 21 16, 16 16 L 8 16 Z" fill="none" stroke="#1A1A1A" strokeWidth="1.5" />
-          <circle cx="28" cy="10" r="2.5" fill="none" stroke="#1A1A1A" strokeWidth="1.5" />
-          <line x1="4" y1="7" x2="8" y2="7" stroke="#1A1A1A" strokeWidth="1.5" />
-          <line x1="4" y1="13" x2="8" y2="13" stroke="#1A1A1A" strokeWidth="1.5" />
-          <line x1="30.5" y1="10" x2="35" y2="10" stroke="#1A1A1A" strokeWidth="1.5" />
-        </svg>
-      ),
-    },
-    {
-      type: 'NOR',
-      name: 'NOR Gate',
-      description: 'Outputs HIGH only if all inputs are LOW',
-      icon: (
-        <svg viewBox="0 0 40 20" className="toolbox-item-icon">
-          <path d="M 8 4 C 11 4, 14 4, 17 4 C 21 4, 25 8, 27 10 C 25 12, 21 16, 17 16 C 14 16, 11 16, 8 16 C 10 12, 10 8, 8 4 Z" fill="none" stroke="#1A1A1A" strokeWidth="1.5" />
-          <circle cx="30" cy="10" r="2.5" fill="none" stroke="#1A1A1A" strokeWidth="1.5" />
-          <line x1="4" y1="7" x2="9" y2="7" stroke="#1A1A1A" strokeWidth="1.5" />
-          <line x1="4" y1="13" x2="9" y2="13" stroke="#1A1A1A" strokeWidth="1.5" />
-          <line x1="32.5" y1="10" x2="37" y2="10" stroke="#1A1A1A" strokeWidth="1.5" />
-        </svg>
-      ),
-    },
-    {
-      type: 'XNOR',
-      name: 'XNOR Gate',
-      description: 'Outputs HIGH if inputs are same',
-      icon: (
-        <svg viewBox="0 0 40 20" className="toolbox-item-icon">
-          <path d="M 10 4 C 13 4, 15 4, 18 4 C 21 4, 25 8, 27 10 C 25 12, 21 16, 18 16 C 15 16, 13 16, 10 16 C 12 12, 12 8, 10 4 Z" fill="none" stroke="#1A1A1A" strokeWidth="1.5" />
-          <path d="M 7 4 C 9 8, 9 12, 7 16" fill="none" stroke="#1A1A1A" strokeWidth="1.5" />
-          <circle cx="30" cy="10" r="2.5" fill="none" stroke="#1A1A1A" strokeWidth="1.5" />
-          <line x1="3" y1="7" x2="9" y2="7" stroke="#1A1A1A" strokeWidth="1.5" />
-          <line x1="3" y1="13" x2="9" y2="13" stroke="#1A1A1A" strokeWidth="1.5" />
-          <line x1="32.5" y1="10" x2="37" y2="10" stroke="#1A1A1A" strokeWidth="1.5" />
-        </svg>
-      ),
-    },
   ];
 
   const outputs: ToolboxItem[] = [
@@ -203,6 +146,9 @@ export const Sidebar: React.FC<SidebarProps> = ({ onAddNode, customGates, active
     });
   }
 
+  // Define preset IDs that are treated as official advanced blocks
+  const presetBlockIds = ['sub-half-adder', 'sub-sr-latch', 'sub-mux', 'sub-nand', 'sub-nor', 'sub-xor', 'sub-xnor'];
+
   return (
     <div className="sidebar-container">
       {/* Category: Inputs */}
@@ -227,7 +173,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ onAddNode, customGates, active
 
       {/* Category: Gates */}
       <div className="toolbox-group">
-        <div className="toolbox-title">Logic Gates</div>
+        <div className="toolbox-title">Basic Logic Gates</div>
         <div className="toolbox-list">
           {gates.map((item) => (
             <div
@@ -267,10 +213,10 @@ export const Sidebar: React.FC<SidebarProps> = ({ onAddNode, customGates, active
 
       {/* Category: Advanced Blocks (Presets) */}
       <div className="toolbox-group">
-        <div className="toolbox-title">Advanced Blocks</div>
+        <div className="toolbox-title">Advanced Blocks (Derived Gates)</div>
         <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
           {Object.values(customGates)
-            .filter((g) => ['sub-half-adder', 'sub-sr-latch', 'sub-mux'].includes(g.id))
+            .filter((g) => presetBlockIds.includes(g.id))
             .map((gate) => (
               <div
                 key={gate.id}
@@ -295,15 +241,15 @@ export const Sidebar: React.FC<SidebarProps> = ({ onAddNode, customGates, active
 
       {/* Category: Custom Gates (User Made) */}
       <div className="toolbox-group">
-        <div className="toolbox-title">Custom Gates</div>
+        <div className="toolbox-title">Custom Gates (User Built)</div>
         <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
-          {Object.values(customGates).filter((g) => !['sub-half-adder', 'sub-sr-latch', 'sub-mux'].includes(g.id)).length === 0 ? (
+          {Object.values(customGates).filter((g) => !presetBlockIds.includes(g.id)).length === 0 ? (
             <div style={{ fontSize: '11px', color: 'var(--text-muted)', fontStyle: 'italic', padding: '8px 0' }}>
               No custom gates packaged yet. Build a sub-circuit in another tab and click "Package Gate".
             </div>
           ) : (
             Object.values(customGates)
-              .filter((g) => !['sub-half-adder', 'sub-sr-latch', 'sub-mux'].includes(g.id))
+              .filter((g) => !presetBlockIds.includes(g.id))
               .map((gate) => (
                 <div
                   key={gate.id}
