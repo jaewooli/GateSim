@@ -1762,44 +1762,52 @@ export function useCircuitState() {
   }, [saveHistory]);
 
   // Load shared circuit from URL query param (?share=circuitId)
-  // Use a ref to ensure we only load once per share ID, preventing re-runs caused by
-  // saveHistory/navigate reference changes in the dependency array.
+  // IMPORTANT: We use window.history.replaceState() instead of navigate() to clean up
+  // the URL, because navigate() triggers React Router re-render which can cause the
+  // component to remount and lose all the state we just set.
   const hasLoadedShareRef = useRef<string | null>(null);
   useEffect(() => {
     const params = new URLSearchParams(location.search);
     const shareId = params.get('share');
-    if (shareId && appMode === 'sandbox' && hasLoadedShareRef.current !== shareId) {
-      hasLoadedShareRef.current = shareId; // Mark as loading immediately to prevent concurrent calls
-      const loadShared = async () => {
-        try {
-          const response = await fetch(`/gatesimulator/api/circuits/share/${shareId}`);
-          if (response.ok) {
-            const data = await response.json();
-            if (data.state && data.state.tabs && data.state.customGates) {
-              saveHistory();
-              setTabs(data.state.tabs);
-              setCustomGates(data.state.customGates);
-              setActiveTabId('main');
-              setTransform(INITIAL_TRANSFORM);
-              setSelectedNodeId(null);
-              setStepCount(0);
-              setOscillationError(false);
-              navigate('/sandbox', { replace: true });
-              // Silently loaded — no alert to avoid interrupting the user
-              console.log(`[GateSim] Shared circuit loaded: "${data.name}"`);
-            } else {
-              console.error('[GateSim] Invalid shared circuit format.');
-            }
-          } else {
-            console.error('[GateSim] Failed to load shared circuit. It may have been deleted or the link is invalid.');
-          }
-        } catch (err) {
-          console.error('[GateSim] Network error loading shared circuit:', err);
+    if (!shareId || hasLoadedShareRef.current === shareId) return;
+
+    hasLoadedShareRef.current = shareId; // Mark immediately to prevent duplicate fetches
+
+    const loadShared = async () => {
+      try {
+        const response = await fetch(`/gatesimulator/api/circuits/share/${shareId}`);
+        if (!response.ok) {
+          console.error('[GateSim] Failed to load shared circuit. It may have been deleted or the link is invalid.');
+          return;
         }
-      };
-      loadShared();
-    }
-  }, [location.search, appMode]); // eslint-disable-line react-hooks/exhaustive-deps
+        const data = await response.json();
+        if (!data.state || !data.state.tabs || !data.state.customGates) {
+          console.error('[GateSim] Invalid shared circuit format.');
+          return;
+        }
+
+        // Apply circuit state FIRST, then clean the URL
+        setTabs(data.state.tabs);
+        setCustomGates(data.state.customGates);
+        setActiveTabId('main');
+        setTransform(INITIAL_TRANSFORM);
+        setSelectedNodeId(null);
+        setStepCount(0);
+        setOscillationError(false);
+
+        // Use window.history.replaceState to remove ?share=xxx from URL
+        // WITHOUT triggering React Router navigation (which would cause remount + state reset)
+        const cleanUrl = window.location.pathname;
+        window.history.replaceState(null, '', cleanUrl);
+
+        console.log(`[GateSim] Shared circuit loaded: "${data.name}"`);
+      } catch (err) {
+        console.error('[GateSim] Network error loading shared circuit:', err);
+      }
+    };
+
+    loadShared();
+  }, [location.search]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // SIMULATION EXECUTION LOOP (REAL-TIME STATE PROPAGATION)
   useEffect(() => {
