@@ -31,6 +31,8 @@ export interface Node {
   inputs: Pin[];
   outputs: Pin[];
   customGateId?: string; // Reference to custom sub-circuit ID if type === 'CUSTOM'
+  width?: number;        // Explicit node width (optional)
+  height?: number;       // Explicit node height (optional)
   // Special component properties:
   clockInterval?: number; // Clock frequency interval in ms (for CLOCK)
   clockState?: boolean;   // Internal state for clocks

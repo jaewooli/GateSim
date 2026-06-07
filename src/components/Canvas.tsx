@@ -5,11 +5,18 @@ import type { CircuitHook } from '../hooks/useCircuitState';
 export const GATE_WIDTH = 110;
 export const GATE_HEIGHT = 70;
 
+export function getNodeWidth(node: Node) {
+  if (node.width !== undefined) return node.width;
+  if (node.type === 'CUSTOM') return 145; // Make custom gates wider by default (from 110)
+  return GATE_WIDTH;
+}
+
 export function getNodeHeight(node: Node) {
+  if (node.height !== undefined) return node.height;
   if (node.type === 'CUSTOM') {
     const maxPins = Math.max(node.inputs.length, node.outputs.length);
-    // Generous vertical spacing per pin to prevent overlaps, min 70px
-    return Math.max(70, maxPins * 28 + 12);
+    // Generous default size + per-pin padding to keep labels separated
+    return Math.max(105, maxPins * 28 + 14);
   }
   return GATE_HEIGHT;
 }
@@ -24,9 +31,10 @@ export function getPinPosition(node: Node, pinId: string) {
 
   const index = pin.index;
   const totalPins = isInput ? node.inputs.length : node.outputs.length;
+  const width = getNodeWidth(node);
   const height = getNodeHeight(node);
 
-  const x = isInput ? node.x : node.x + GATE_WIDTH;
+  const x = isInput ? node.x : node.x + width;
   const y = node.y + (index + 1) * (height / (totalPins + 1));
 
   return { x, y };
@@ -69,6 +77,7 @@ export const Canvas: React.FC<CanvasProps> = ({ circuit }) => {
     selectedNodeId,
     setSelectedNodeId,
     moveNode,
+    resizeNode,
     connectPins,
     deleteConnection,
     toggleSwitch,
@@ -86,6 +95,7 @@ export const Canvas: React.FC<CanvasProps> = ({ circuit }) => {
   const [isPanning, setIsPanning] = useState(false);
   const [panStart, setPanStart] = useState({ x: 0, y: 0 });
   const [draggedNode, setDraggedNode] = useState<{ id: string; offsetX: number; offsetY: number } | null>(null);
+  const [resizedNode, setResizedNode] = useState<{ id: string; startWidth: number; startHeight: number; startX: number; startY: number } | null>(null);
 
   // Convert screen coordinates to canvas grid coordinates
   const getCanvasCoords = (clientX: number, clientY: number) => {
@@ -151,6 +161,16 @@ export const Canvas: React.FC<CanvasProps> = ({ circuit }) => {
       moveNode(draggedNode.id, targetX, targetY);
     }
 
+    // 4. Resize Node
+    if (resizedNode) {
+      const dx = coords.x - resizedNode.startX;
+      const dy = coords.y - resizedNode.startY;
+      // Allow grid snaps during resize as well
+      const targetWidth = Math.max(80, Math.round((resizedNode.startWidth + dx) / 10) * 10);
+      const targetHeight = Math.max(50, Math.round((resizedNode.startHeight + dy) / 10) * 10);
+      resizeNode(resizedNode.id, targetWidth, targetHeight);
+    }
+
     // 3. Update Wire Draft Position
     if (wireDraft) {
       setWireDraft({
@@ -166,6 +186,7 @@ export const Canvas: React.FC<CanvasProps> = ({ circuit }) => {
     setIsPanning(false);
     setDraggedNode(null);
     setWireDraft(null);
+    setResizedNode(null);
   };
 
   // Drag and drop node from Sidebar toolbox
@@ -398,6 +419,7 @@ export const Canvas: React.FC<CanvasProps> = ({ circuit }) => {
           {/* 3. RENDER GATE NODES */}
           {nodes.map((node) => {
             const isSelected = node.id === selectedNodeId;
+            const width = getNodeWidth(node);
             const height = getNodeHeight(node);
             let customColor = '#B6E63A';
 
@@ -422,7 +444,7 @@ export const Canvas: React.FC<CanvasProps> = ({ circuit }) => {
                 <rect
                   x={node.x}
                   y={node.y}
-                  width={GATE_WIDTH}
+                  width={width}
                   height={height}
                   rx="18"
                   className={`gate-body ${isSelected ? 'selected' : ''}`}
@@ -448,7 +470,7 @@ export const Canvas: React.FC<CanvasProps> = ({ circuit }) => {
 
                 {/* Card Title Label */}
                 <text
-                  x={node.x + GATE_WIDTH / 2}
+                  x={node.x + width / 2}
                   y={node.y + 24}
                   textAnchor="middle"
                   className="gate-label"
@@ -460,7 +482,7 @@ export const Canvas: React.FC<CanvasProps> = ({ circuit }) => {
                 {node.type === 'SWITCH' && (() => {
                   const val = node.outputs[0]?.value ?? false;
                   return (
-                    <g transform={`translate(${node.x + GATE_WIDTH / 2 - 15}, ${node.y + height / 2 - 7})`}>
+                    <g transform={`translate(${node.x + width / 2 - 15}, ${node.y + height / 2 - 7})`}>
                       {/* Toggle visual */}
                       <rect
                         width="30"
@@ -485,7 +507,7 @@ export const Canvas: React.FC<CanvasProps> = ({ circuit }) => {
                 {node.type === 'BUTTON' && (() => {
                   const val = node.outputs[0]?.value ?? false;
                   return (
-                    <g transform={`translate(${node.x + GATE_WIDTH / 2}, ${node.y + height / 2 + 9})`}>
+                    <g transform={`translate(${node.x + width / 2}, ${node.y + height / 2 + 9})`}>
                       {/* Physical button visual */}
                       <circle
                         cx="0"
@@ -513,7 +535,7 @@ export const Canvas: React.FC<CanvasProps> = ({ circuit }) => {
                   const val = node.outputs[0]?.value ?? false;
                   const interval = node.clockInterval || 1000;
                   return (
-                    <g transform={`translate(${node.x + GATE_WIDTH / 2}, ${node.y + height - 18})`}>
+                    <g transform={`translate(${node.x + width / 2}, ${node.y + height - 18})`}>
                       <text className="gate-subtext" textAnchor="middle">
                         {val ? '⚡ HIGH' : '💤 LOW'} ({interval}ms)
                       </text>
@@ -524,7 +546,7 @@ export const Canvas: React.FC<CanvasProps> = ({ circuit }) => {
                 {node.type === 'LED' && (() => {
                   const val = node.inputs[0]?.value ?? false;
                   return (
-                    <g transform={`translate(${node.x + GATE_WIDTH / 2}, ${node.y + height / 2 + 9})`}>
+                    <g transform={`translate(${node.x + width / 2}, ${node.y + height / 2 + 9})`}>
                       <circle
                         cx="0"
                         cy="0"
@@ -543,7 +565,7 @@ export const Canvas: React.FC<CanvasProps> = ({ circuit }) => {
 
                 {/* Port Nodes In/Out labels */}
                 {node.type === 'PORT_OUT' && (
-                  <g transform={`translate(${node.x + GATE_WIDTH / 2}, ${node.y + height - 18})`}>
+                  <g transform={`translate(${node.x + width / 2}, ${node.y + height - 18})`}>
                     <text className="gate-subtext" textAnchor="middle" style={{ fontWeight: 'bold' }}>
                       OUTPUT SINK
                     </text>
@@ -554,12 +576,12 @@ export const Canvas: React.FC<CanvasProps> = ({ circuit }) => {
                   const val = node.outputs[0]?.value ?? false;
                   return (
                     <g>
-                      <g transform={`translate(${node.x + GATE_WIDTH / 2}, ${node.y + height - 12})`}>
+                      <g transform={`translate(${node.x + width / 2}, ${node.y + height - 12})`}>
                         <text className="gate-subtext" textAnchor="middle" style={{ fontWeight: 'bold' }}>
                           TEST INPUT
                         </text>
                       </g>
-                      <g transform={`translate(${node.x + GATE_WIDTH / 2 - 15}, ${node.y + height / 2 - 10})`}>
+                      <g transform={`translate(${node.x + width / 2 - 15}, ${node.y + height / 2 - 10})`}>
                         {/* Toggle switch for testing */}
                         <rect
                           width="30"
@@ -584,7 +606,7 @@ export const Canvas: React.FC<CanvasProps> = ({ circuit }) => {
 
                 {/* Sub-circuit node internal representation label */}
                 {node.type === 'CUSTOM' && (
-                  <g transform={`translate(${node.x + GATE_WIDTH / 2}, ${node.y + height - 18})`}>
+                  <g transform={`translate(${node.x + width / 2}, ${node.y + height - 18})`}>
                     <text className="gate-subtext" textAnchor="middle">
                       Composite Gate
                     </text>
@@ -593,10 +615,37 @@ export const Canvas: React.FC<CanvasProps> = ({ circuit }) => {
 
                 {/* Render Logic Symbol inside core basic gates */}
                 {['AND', 'OR', 'NOT', 'XOR', 'NAND', 'NOR', 'XNOR'].includes(node.type) && (
-                  <g transform={`translate(${node.x + GATE_WIDTH / 2}, ${node.y + height - 18})`}>
+                  <g transform={`translate(${node.x + width / 2}, ${node.y + height - 18})`}>
                     <text className="gate-subtext" textAnchor="middle">
                       {node.type} Logic
                     </text>
+                  </g>
+                )}
+
+                {/* Resize Handle (visible when selected) */}
+                {isSelected && (
+                  <g
+                    transform={`translate(${node.x + width - 12}, ${node.y + height - 12})`}
+                    style={{ cursor: 'se-resize' }}
+                    onMouseDown={(e) => {
+                      e.stopPropagation();
+                      const coords = getCanvasCoords(e.clientX, e.clientY);
+                      setResizedNode({
+                        id: node.id,
+                        startWidth: width,
+                        startHeight: height,
+                        startX: coords.x,
+                        startY: coords.y,
+                      });
+                    }}
+                  >
+                    <path
+                      d="M 10 0 L 0 10 M 10 4 L 4 10 M 10 8 L 8 10"
+                      stroke="var(--text-muted)"
+                      strokeWidth="1.5"
+                      strokeLinecap="round"
+                      opacity="0.7"
+                    />
                   </g>
                 )}
 

@@ -344,6 +344,14 @@ export function useCircuitState() {
     }));
   }, [updateActiveCircuitState]);
 
+  // Resize Node
+  const resizeNode = useCallback((nodeId: string, width: number, height: number) => {
+    updateActiveCircuitState((prev) => ({
+      nodes: prev.nodes.map((n) => (n.id === nodeId ? { ...n, width, height } : n)),
+      connections: prev.connections,
+    }));
+  }, [updateActiveCircuitState]);
+
   // Delete Node and all its connections
   const deleteNode = useCallback((nodeId: string) => {
     saveHistory();
@@ -757,6 +765,7 @@ export function useCircuitState() {
     // Actions
     addNode,
     moveNode,
+    resizeNode,
     deleteNode,
     connectPins,
     deleteConnection,
