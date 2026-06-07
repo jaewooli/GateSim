@@ -5,6 +5,15 @@ import type { CircuitHook } from '../hooks/useCircuitState';
 export const GATE_WIDTH = 110;
 export const GATE_HEIGHT = 70;
 
+export function getNodeHeight(node: Node) {
+  if (node.type === 'CUSTOM') {
+    const maxPins = Math.max(node.inputs.length, node.outputs.length);
+    // Generous vertical spacing per pin to prevent overlaps, min 70px
+    return Math.max(70, maxPins * 28 + 12);
+  }
+  return GATE_HEIGHT;
+}
+
 export function getPinPosition(node: Node, pinId: string) {
   const isInput = node.inputs.some((p) => p.id === pinId);
   const pin = isInput
@@ -15,9 +24,10 @@ export function getPinPosition(node: Node, pinId: string) {
 
   const index = pin.index;
   const totalPins = isInput ? node.inputs.length : node.outputs.length;
+  const height = getNodeHeight(node);
 
   const x = isInput ? node.x : node.x + GATE_WIDTH;
-  const y = node.y + (index + 1) * (GATE_HEIGHT / (totalPins + 1));
+  const y = node.y + (index + 1) * (height / (totalPins + 1));
 
   return { x, y };
 }
@@ -388,6 +398,7 @@ export const Canvas: React.FC<CanvasProps> = ({ circuit }) => {
           {/* 3. RENDER GATE NODES */}
           {nodes.map((node) => {
             const isSelected = node.id === selectedNodeId;
+            const height = getNodeHeight(node);
             let customColor = '#B6E63A';
 
             if (node.type === 'CUSTOM' && node.customGateId && customGates[node.customGateId]) {
@@ -412,7 +423,7 @@ export const Canvas: React.FC<CanvasProps> = ({ circuit }) => {
                   x={node.x}
                   y={node.y}
                   width={GATE_WIDTH}
-                  height={GATE_HEIGHT}
+                  height={height}
                   rx="18"
                   className={`gate-body ${isSelected ? 'selected' : ''}`}
                   style={{
@@ -449,7 +460,7 @@ export const Canvas: React.FC<CanvasProps> = ({ circuit }) => {
                 {node.type === 'SWITCH' && (() => {
                   const val = node.outputs[0]?.value ?? false;
                   return (
-                    <g transform={`translate(${node.x + GATE_WIDTH / 2 - 15}, ${node.y + 36})`}>
+                    <g transform={`translate(${node.x + GATE_WIDTH / 2 - 15}, ${node.y + height / 2 - 7})`}>
                       {/* Toggle visual */}
                       <rect
                         width="30"
@@ -474,7 +485,7 @@ export const Canvas: React.FC<CanvasProps> = ({ circuit }) => {
                 {node.type === 'BUTTON' && (() => {
                   const val = node.outputs[0]?.value ?? false;
                   return (
-                    <g transform={`translate(${node.x + GATE_WIDTH / 2}, ${node.y + 44})`}>
+                    <g transform={`translate(${node.x + GATE_WIDTH / 2}, ${node.y + height / 2 + 9})`}>
                       {/* Physical button visual */}
                       <circle
                         cx="0"
@@ -502,7 +513,7 @@ export const Canvas: React.FC<CanvasProps> = ({ circuit }) => {
                   const val = node.outputs[0]?.value ?? false;
                   const interval = node.clockInterval || 1000;
                   return (
-                    <g transform={`translate(${node.x + GATE_WIDTH / 2}, ${node.y + 46})`}>
+                    <g transform={`translate(${node.x + GATE_WIDTH / 2}, ${node.y + height - 18})`}>
                       <text className="gate-subtext" textAnchor="middle">
                         {val ? '⚡ HIGH' : '💤 LOW'} ({interval}ms)
                       </text>
@@ -513,7 +524,7 @@ export const Canvas: React.FC<CanvasProps> = ({ circuit }) => {
                 {node.type === 'LED' && (() => {
                   const val = node.inputs[0]?.value ?? false;
                   return (
-                    <g transform={`translate(${node.x + GATE_WIDTH / 2}, ${node.y + 44})`}>
+                    <g transform={`translate(${node.x + GATE_WIDTH / 2}, ${node.y + height / 2 + 9})`}>
                       <circle
                         cx="0"
                         cy="0"
@@ -532,7 +543,7 @@ export const Canvas: React.FC<CanvasProps> = ({ circuit }) => {
 
                 {/* Port Nodes In/Out labels */}
                 {node.type === 'PORT_OUT' && (
-                  <g transform={`translate(${node.x + GATE_WIDTH / 2}, ${node.y + 46})`}>
+                  <g transform={`translate(${node.x + GATE_WIDTH / 2}, ${node.y + height - 18})`}>
                     <text className="gate-subtext" textAnchor="middle" style={{ fontWeight: 'bold' }}>
                       OUTPUT SINK
                     </text>
@@ -543,12 +554,12 @@ export const Canvas: React.FC<CanvasProps> = ({ circuit }) => {
                   const val = node.outputs[0]?.value ?? false;
                   return (
                     <g>
-                      <g transform={`translate(${node.x + GATE_WIDTH / 2}, ${node.y + 56})`}>
+                      <g transform={`translate(${node.x + GATE_WIDTH / 2}, ${node.y + height - 12})`}>
                         <text className="gate-subtext" textAnchor="middle" style={{ fontWeight: 'bold' }}>
                           TEST INPUT
                         </text>
                       </g>
-                      <g transform={`translate(${node.x + GATE_WIDTH / 2 - 15}, ${node.y + 32})`}>
+                      <g transform={`translate(${node.x + GATE_WIDTH / 2 - 15}, ${node.y + height / 2 - 10})`}>
                         {/* Toggle switch for testing */}
                         <rect
                           width="30"
@@ -573,7 +584,7 @@ export const Canvas: React.FC<CanvasProps> = ({ circuit }) => {
 
                 {/* Sub-circuit node internal representation label */}
                 {node.type === 'CUSTOM' && (
-                  <g transform={`translate(${node.x + GATE_WIDTH / 2}, ${node.y + 46})`}>
+                  <g transform={`translate(${node.x + GATE_WIDTH / 2}, ${node.y + height - 18})`}>
                     <text className="gate-subtext" textAnchor="middle">
                       Composite Gate
                     </text>
@@ -582,7 +593,7 @@ export const Canvas: React.FC<CanvasProps> = ({ circuit }) => {
 
                 {/* Render Logic Symbol inside core basic gates */}
                 {['AND', 'OR', 'NOT', 'XOR', 'NAND', 'NOR', 'XNOR'].includes(node.type) && (
-                  <g transform={`translate(${node.x + GATE_WIDTH / 2}, ${node.y + 46})`}>
+                  <g transform={`translate(${node.x + GATE_WIDTH / 2}, ${node.y + height - 18})`}>
                     <text className="gate-subtext" textAnchor="middle">
                       {node.type} Logic
                     </text>

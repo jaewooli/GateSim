@@ -70,11 +70,11 @@ const DEMO_TABS: Tab[] = [
     state: {
       nodes: [
         createDemoNode('ha-in-a', 'PORT_IN', 'IN PORT', 60, 80, 0, 1, undefined, 'A'),
-        createDemoNode('ha-in-b', 'PORT_IN', 'IN PORT', 60, 200, 0, 1, undefined, 'B'),
-        createDemoNode('ha-xor', 'XOR', 'XOR', 220, 60, 2, 1),
-        createDemoNode('ha-and', 'AND', 'AND', 220, 180, 2, 1),
-        createDemoNode('ha-out-s', 'PORT_OUT', 'OUT PORT', 380, 80, 1, 0, undefined, 'Sum'),
-        createDemoNode('ha-out-c', 'PORT_OUT', 'OUT PORT', 380, 200, 1, 0, undefined, 'Carry'),
+        createDemoNode('ha-in-b', 'PORT_IN', 'IN PORT', 60, 240, 0, 1, undefined, 'B'),
+        createDemoNode('ha-xor', 'XOR', 'XOR', 280, 60, 2, 1),
+        createDemoNode('ha-and', 'AND', 'AND', 280, 220, 2, 1),
+        createDemoNode('ha-out-s', 'PORT_OUT', 'OUT PORT', 500, 80, 1, 0, undefined, 'Sum'),
+        createDemoNode('ha-out-c', 'PORT_OUT', 'OUT PORT', 500, 240, 1, 0, undefined, 'Carry'),
       ],
       connections: [
         { id: 'ha-conn-1', fromPinId: 'ha-in-a-out-0', toPinId: 'ha-xor-in-0' },
@@ -93,11 +93,11 @@ const DEMO_TABS: Tab[] = [
     state: {
       nodes: [
         createDemoNode('sr-in-r', 'PORT_IN', 'IN PORT', 60, 80, 0, 1, undefined, 'Reset (R)'),
-        createDemoNode('sr-in-s', 'PORT_IN', 'IN PORT', 60, 240, 0, 1, undefined, 'Set (S)'),
-        createDemoNode('sr-nor-q', 'NOR', 'NOR', 220, 60, 2, 1, undefined, 'Q Output Gate'),
-        createDemoNode('sr-nor-qb', 'NOR', 'NOR', 220, 220, 2, 1, undefined, 'Q_bar Gate'),
-        createDemoNode('sr-out-q', 'PORT_OUT', 'OUT PORT', 380, 80, 1, 0, undefined, 'Q'),
-        createDemoNode('sr-out-qb', 'PORT_OUT', 'OUT PORT', 380, 240, 1, 0, undefined, 'Q_bar'),
+        createDemoNode('sr-in-s', 'PORT_IN', 'IN PORT', 60, 320, 0, 1, undefined, 'Set (S)'),
+        createDemoNode('sr-nor-q', 'NOR', 'NOR', 280, 60, 2, 1, undefined, 'Q Output Gate'),
+        createDemoNode('sr-nor-qb', 'NOR', 'NOR', 280, 280, 2, 1, undefined, 'Q_bar Gate'),
+        createDemoNode('sr-out-q', 'PORT_OUT', 'OUT PORT', 500, 80, 1, 0, undefined, 'Q'),
+        createDemoNode('sr-out-qb', 'PORT_OUT', 'OUT PORT', 500, 320, 1, 0, undefined, 'Q_bar'),
       ],
       connections: [
         { id: 'sr-conn-1', fromPinId: 'sr-in-r-out-0', toPinId: 'sr-nor-q-in-0' },
@@ -116,13 +116,13 @@ const DEMO_TABS: Tab[] = [
     state: {
       nodes: [
         createDemoNode('mux-d0', 'PORT_IN', 'IN PORT', 60, 60, 0, 1, undefined, 'D0'),
-        createDemoNode('mux-d1', 'PORT_IN', 'IN PORT', 60, 260, 0, 1, undefined, 'D1'),
-        createDemoNode('mux-sel', 'PORT_IN', 'IN PORT', 60, 160, 0, 1, undefined, 'Select'),
-        createDemoNode('mux-not', 'NOT', 'NOT', 170, 160, 1, 1),
-        createDemoNode('mux-and-0', 'AND', 'AND', 280, 60, 2, 1),
-        createDemoNode('mux-and-1', 'AND', 'AND', 280, 220, 2, 1),
-        createDemoNode('mux-or', 'OR', 'OR', 420, 140, 2, 1),
-        createDemoNode('mux-out', 'PORT_OUT', 'OUT PORT', 560, 160, 1, 0, undefined, 'Out'),
+        createDemoNode('mux-d1', 'PORT_IN', 'IN PORT', 60, 380, 0, 1, undefined, 'D1'),
+        createDemoNode('mux-sel', 'PORT_IN', 'IN PORT', 60, 220, 0, 1, undefined, 'Select'),
+        createDemoNode('mux-not', 'NOT', 'NOT', 240, 220, 1, 1),
+        createDemoNode('mux-and-0', 'AND', 'AND', 420, 60, 2, 1),
+        createDemoNode('mux-and-1', 'AND', 'AND', 420, 320, 2, 1),
+        createDemoNode('mux-or', 'OR', 'OR', 600, 190, 2, 1),
+        createDemoNode('mux-out', 'PORT_OUT', 'OUT PORT', 780, 190, 1, 0, undefined, 'Out'),
       ],
       connections: [
         { id: 'mux-conn-1', fromPinId: 'mux-sel-out-0', toPinId: 'mux-not-in-0' },
