@@ -513,7 +513,11 @@ wss.on('connection', (ws, req) => {
         const { nodeId } = msg;
         if (room.locks.get(nodeId) === clientId) {
           room.locks.delete(nodeId);
-          broadcast({ type: 'lock_released', nodeId, clientId });
+          broadcastAll({ 
+            type: 'lock_released', 
+            nodeId: nodeId, 
+            clientId: clientId 
+          });
         }
         break;
       }
