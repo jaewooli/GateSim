@@ -11,13 +11,13 @@ export default defineConfig({
     proxy: {
       // 일반 API 요청 프록시
       '/gatesimulator/api': {
-        target: 'http://localhost:8081',
+        target: 'http://127.0.0.1:8081',
         changeOrigin: true,
         secure: false,
       },
       // 실시간 협업 웹소켓 요청 프록시
       '/gatesimulator/ws': {
-        target: 'ws://localhost:8081',
+        target: 'ws://127.0.0.1:8081',
         ws: true,
         changeOrigin: true,
       }
