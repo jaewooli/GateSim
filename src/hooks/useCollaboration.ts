@@ -57,12 +57,13 @@ export interface CircuitOp {
 // ─────────────────────────────────────────────────────────────────
 //  Hook
 // ─────────────────────────────────────────────────────────────────
-const BASE = import.meta.env.BASE_URL?.replace(/\/$/, '') || '';
+/** e.g. "/gatesimulator" (trailing slash stripped) */
+const BASE_PATH = import.meta.env.BASE_URL?.replace(/\/$/, '') || '';
 
 function getWsBaseUrl(): string {
   const proto = window.location.protocol === 'https:' ? 'wss' : 'ws';
   const host = window.location.host;
-  return `${proto}://${host}${BASE}`;
+  return `${proto}://${host}`;
 }
 
 export function useCollaboration(
@@ -103,7 +104,7 @@ export function useCollaboration(
     setState((prev) => ({ ...prev, status: 'connecting', error: null, roomId }));
 
     const tokenParam = authToken ? `?token=${encodeURIComponent(authToken)}` : '';
-    const wsUrl = `${getWsBaseUrl()}/ws/collab/${roomId}${tokenParam}`;
+    const wsUrl = `${getWsBaseUrl()}${BASE_PATH}/ws/collab/${roomId}${tokenParam}`;
     const ws = new WebSocket(wsUrl);
     wsRef.current = ws;
 
@@ -250,7 +251,7 @@ export function useCollaboration(
       return null;
     }
     try {
-      const res = await fetch(`${BASE}/gatesimulator/api/collab/rooms`, {
+      const res = await fetch(`${BASE_PATH}/api/collab/rooms`, {
         method: 'POST',
         headers: { Authorization: `Bearer ${authToken}` },
       });
