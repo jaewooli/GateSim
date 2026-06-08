@@ -451,6 +451,8 @@ wss.on('connection', (ws, req) => {
       username: c.username,
       color: c.color,
       cursor: c.cursor,
+      chatText: c.chatText,
+      chatIsFinal: c.chatIsFinal,
     })),
     locks: Object.fromEntries(room.locks),
   }));
@@ -472,6 +474,13 @@ wss.on('connection', (ws, req) => {
       case 'cursor_move':
         clientInfo.cursor = msg.cursor;
         broadcast({ type: 'cursor_move', clientId, username, color, cursor: msg.cursor });
+        break;
+
+      // ── Cursor chat ──────────────────────────────────────────────
+      case 'cursor_chat':
+        clientInfo.chatText = msg.text;
+        clientInfo.chatIsFinal = msg.isFinal;
+        broadcast({ type: 'cursor_chat', clientId, username, color, text: msg.text, isFinal: msg.isFinal });
         break;
 
       // ── Element lock request ─────────────────────────────────────

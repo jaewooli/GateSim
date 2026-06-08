@@ -466,3 +466,80 @@ body.dark-theme button.outline:hover {
   border-color: var(--accent);
   color: var(--text-primary);
 }
+
+/* --- Cursor Chat Styling --- */
+.cursor-chat-bubble {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  background-color: var(--secondary-bg);
+  border: 2.5px solid var(--border-color);
+  border-radius: 18px 18px 18px 4px;
+  padding: 6px 14px;
+  font-family: var(--sans);
+  font-size: 13px;
+  font-weight: 600;
+  box-shadow: 0px 8px 24px rgba(0, 0, 0, 0.12);
+  z-index: 1000;
+  pointer-events: auto;
+  min-width: 140px;
+  transition: transform 0.1s ease, opacity 0.2s ease;
+  animation: cursor-chat-in 0.2s cubic-bezier(0.16, 1, 0.3, 1) both;
+  color: var(--text-primary);
+}
+
+@keyframes cursor-chat-in {
+  from {
+    opacity: 0;
+    transform: translate(10px, 15px) scale(0.9);
+  }
+  to {
+    opacity: 1;
+    transform: translate(10px, 15px) scale(1);
+  }
+}
+
+.cursor-chat-dot {
+  display: inline-block;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+
+.cursor-chat-bubble input {
+  background: transparent;
+  border: none;
+  outline: none;
+  font-family: inherit;
+  font-size: inherit;
+  font-weight: inherit;
+  color: var(--text-primary);
+  width: 150px;
+  padding: 0;
+  margin: 0;
+}
+
+.cursor-chat-bubble input::placeholder {
+  color: var(--text-muted);
+  font-style: italic;
+  opacity: 0.7;
+}
+
+.cursor-chat-text {
+  white-space: pre-wrap;
+  word-break: break-word;
+  max-width: 250px;
+}
+
+.cursor-chat-user {
+  font-weight: 800;
+  opacity: 0.8;
+  margin-right: 4px;
+}
+
+body.dark-theme .cursor-chat-bubble {
+  background-color: var(--secondary-bg);
+  border-color: var(--border-color);
+}
+

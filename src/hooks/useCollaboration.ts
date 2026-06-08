@@ -8,6 +8,8 @@ export interface CollabMember {
   username: string;
   color: string;
   cursor: { x: number; y: number } | null;
+  chatText?: string;
+  chatIsFinal?: boolean;
 }
 
 export interface CollabState {
@@ -46,6 +48,8 @@ export interface CollabActions {
   broadcastOp: (op: CircuitOp) => void;
   /** Whether I hold the lock on a given node */
   iLockedBy: (nodeId: string) => boolean;
+  /** Send cursor chat message */
+  sendCursorChat: (text: string, isFinal: boolean) => void;
 }
 
 export interface CircuitOp {
@@ -143,6 +147,8 @@ export function useCollaboration(
             username: msg.username as string,
             color: msg.color as string,
             cursor: null,
+            chatText: '',
+            chatIsFinal: false,
           };
           setState((prev) => ({
             ...prev,
@@ -211,6 +217,34 @@ export function useCollaboration(
               clientId: msg.clientId as string,
               username: msg.username as string,
             });
+          }
+          break;
+        }
+
+        case 'cursor_chat': {
+          const cid = msg.clientId as string;
+          const text = msg.text as string;
+          const isFinal = msg.isFinal as boolean;
+          setState((prev) => ({
+            ...prev,
+            members: prev.members.map((m) =>
+              m.clientId === cid
+                ? { ...m, chatText: text, chatIsFinal: isFinal }
+                : m
+            ),
+          }));
+
+          if (isFinal) {
+            setTimeout(() => {
+              setState((prev) => ({
+                ...prev,
+                members: prev.members.map((m) =>
+                  m.clientId === cid && m.chatText === text
+                    ? { ...m, chatText: '', chatIsFinal: false }
+                    : m
+                ),
+              }));
+            }, 5000);
           }
           break;
         }
@@ -300,6 +334,10 @@ export function useCollaboration(
     return state.locks[nodeId]?.clientId === state.myClientId;
   }, [state.locks, state.myClientId]);
 
+  const sendCursorChat = useCallback((text: string, isFinal: boolean) => {
+    send({ type: 'cursor_chat', text, isFinal });
+  }, [send]);
+
   // ── Cleanup on unmount ────────────────────────────────────────
   useEffect(() => {
     return () => { wsRef.current?.close(); };
@@ -325,5 +363,6 @@ export function useCollaboration(
     releaseLock,
     broadcastOp,
     iLockedBy,
+    sendCursorChat,
   };
 }

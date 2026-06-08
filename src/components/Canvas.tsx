@@ -103,6 +103,66 @@ export const Canvas: React.FC<CanvasProps> = ({ circuit, collab }) => {
   const [resizedNode, setResizedNode] = useState<{ id: string; startWidth: number; startHeight: number; startX: number; startY: number } | null>(null);
   const [minimapCollapsed, setMinimapCollapsed] = useState(false);
 
+  // Cursor Chat (Figma-like Spacebar Chat)
+  const [cursorChat, setCursorChat] = useState<{
+    active: boolean;
+    text: string;
+    canvasX: number;
+    canvasY: number;
+  }>({
+    active: false,
+    text: '',
+    canvasX: 0,
+    canvasY: 0,
+  });
+
+  const [localFinalBubble, setLocalFinalBubble] = useState<{
+    text: string;
+    canvasX: number;
+    canvasY: number;
+  } | null>(null);
+
+  const latestMouseRef = useRef({ canvasX: 0, canvasY: 0 });
+  const chatInputRef = useRef<HTMLInputElement>(null);
+
+  // Focus chat input when activated
+  useEffect(() => {
+    if (cursorChat.active && chatInputRef.current) {
+      chatInputRef.current.focus();
+    }
+  }, [cursorChat.active]);
+
+  // Spacebar global keyboard listener to open chat
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      const target = e.target as HTMLElement;
+      if (
+        target.tagName === 'INPUT' ||
+        target.tagName === 'TEXTAREA' ||
+        target.isContentEditable
+      ) {
+        return; // ignore if typing in fields
+      }
+
+      if (e.key === ' ' || e.code === 'Space') {
+        if (!collab?.isConnected) return;
+        e.preventDefault();
+        setCursorChat((prev) => {
+          if (prev.active) return prev;
+          return {
+            active: true,
+            text: '',
+            canvasX: latestMouseRef.current.canvasX,
+            canvasY: latestMouseRef.current.canvasY,
+          };
+        });
+      }
+    };
+
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [collab?.isConnected]);
+
   // Viewport size tracking for minimap
   const [viewportSize, setViewportSize] = useState({ w: 800, h: 600 });
   useEffect(() => {
@@ -299,6 +359,16 @@ export const Canvas: React.FC<CanvasProps> = ({ circuit, collab }) => {
   // Mousemove on Canvas (dragging nodes, selection box, panning, draft wires)
   const handleCanvasMouseMove = (e: React.MouseEvent<SVGSVGElement>) => {
     const coords = getCanvasCoords(e.clientX, e.clientY);
+
+    // Track latest mouse coordinates for cursor chat
+    latestMouseRef.current = { canvasX: coords.x, canvasY: coords.y };
+    if (cursorChat.active) {
+      setCursorChat((prev) => ({
+        ...prev,
+        canvasX: coords.x,
+        canvasY: coords.y,
+      }));
+    }
 
     // Send cursor position to collab peers
     if (collab?.isConnected) {
@@ -1381,6 +1451,120 @@ export const Canvas: React.FC<CanvasProps> = ({ circuit, collab }) => {
         collapsed={minimapCollapsed}
         onToggleCollapse={() => setMinimapCollapsed((v) => !v)}
       />
+
+      {/* 9. CURSOR CHAT OVERLAYS (Figma-like Spacebar Chat) */}
+      {collab?.isConnected && (
+        <div 
+          className="cursor-chats-overlay-container" 
+          style={{ 
+            position: 'absolute', 
+            top: 0, 
+            left: 0, 
+            width: '100%', 
+            height: '100%', 
+            pointerEvents: 'none', 
+            overflow: 'hidden',
+            zIndex: 999 
+          }}
+        >
+          {/* Local User Active Chat Input */}
+          {cursorChat.active && (
+            <div
+              className="cursor-chat-bubble local"
+              style={{
+                position: 'absolute',
+                left: `${cursorChat.canvasX * transform.zoom + transform.x}px`,
+                top: `${cursorChat.canvasY * transform.zoom + transform.y}px`,
+                borderColor: collab.myColor || 'var(--accent)',
+                pointerEvents: 'auto',
+              }}
+              onMouseDown={(e) => e.stopPropagation()}
+              onClick={(e) => e.stopPropagation()}
+            >
+              <span className="cursor-chat-dot" style={{ backgroundColor: collab.myColor || 'var(--accent)' }} />
+              <input
+                ref={chatInputRef}
+                type="text"
+                value={cursorChat.text}
+                placeholder="Say something..."
+                onChange={(e) => {
+                  const val = e.target.value;
+                  setCursorChat((prev) => ({ ...prev, text: val }));
+                  collab.sendCursorChat(val, false);
+                }}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter') {
+                    e.preventDefault();
+                    const trimmed = cursorChat.text.trim();
+                    if (trimmed) {
+                      collab.sendCursorChat(trimmed, true);
+                      setLocalFinalBubble({
+                        text: trimmed,
+                        canvasX: cursorChat.canvasX,
+                        canvasY: cursorChat.canvasY,
+                      });
+                      setTimeout(() => {
+                        setLocalFinalBubble((prev) => (prev?.text === trimmed ? null : prev));
+                      }, 5000);
+                    } else {
+                      collab.sendCursorChat('', false);
+                    }
+                    setCursorChat((prev) => ({ ...prev, active: false, text: '' }));
+                  } else if (e.key === 'Escape') {
+                    e.preventDefault();
+                    collab.sendCursorChat('', false);
+                    setCursorChat((prev) => ({ ...prev, active: false, text: '' }));
+                  }
+                }}
+                onBlur={() => {
+                  collab.sendCursorChat('', false);
+                  setCursorChat((prev) => ({ ...prev, active: false, text: '' }));
+                }}
+              />
+            </div>
+          )}
+
+          {/* Local User Finalized Chat Bubble */}
+          {localFinalBubble && (
+            <div
+              className="cursor-chat-bubble local-final"
+              style={{
+                position: 'absolute',
+                left: `${localFinalBubble.canvasX * transform.zoom + transform.x}px`,
+                top: `${localFinalBubble.canvasY * transform.zoom + transform.y}px`,
+                borderColor: collab.myColor || 'var(--accent)',
+              }}
+            >
+              <span className="cursor-chat-dot" style={{ backgroundColor: collab.myColor || 'var(--accent)' }} />
+              <div className="cursor-chat-text">
+                <span className="cursor-chat-user">나:</span> {localFinalBubble.text}
+              </div>
+            </div>
+          )}
+
+          {/* Remote Users Chat Bubbles */}
+          {collab.members.map((member) => {
+            if (!member.cursor || !member.chatText) return null;
+            return (
+              <div
+                key={`chat-${member.clientId}`}
+                className="cursor-chat-bubble remote"
+                style={{
+                  position: 'absolute',
+                  left: `${member.cursor.x * transform.zoom + transform.x}px`,
+                  top: `${member.cursor.y * transform.zoom + transform.y}px`,
+                  borderColor: member.color,
+                }}
+              >
+                <span className="cursor-chat-dot" style={{ backgroundColor: member.color }} />
+                <div className="cursor-chat-text">
+                  <span className="cursor-chat-user">{member.username}:</span> {member.chatText}
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      )}
     </div>
   );
 };

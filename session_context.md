@@ -62,17 +62,23 @@
 
 ### ✅ WebSocket 실시간 협업
 - `server.cjs` — `ws` 패키지 + `http.createServer`로 WebSocket 서버 추가
-- `src/hooks/useCollaboration.ts` — 협업 훅
+- `src/hooks/useCollaboration.ts` — 협업 훅 및 실시간 커서 챗 액션 정의
 - `src/components/CollabPanel.tsx` — Sidebar 하단 협업 UI 패널
 
-**협업 흐름:**
+**협업 및 커서 챗 흐름:**
 1. 로그인 사용자가 `POST /api/collab/rooms` → roomId 발급
 2. `WS /gatesimulator/ws/collab/<roomId>?token=<jwt>` 로 WebSocket 연결
-3. welcome 메시지로 현재 멤버 목록 + Lock 상태 수신
+3. welcome 메시지로 현재 멤버 목록 + Lock 상태 + 기존 활성 커서 챗 수신
 4. cursor_move (20fps 쓰로틀) → 원격 커서 SVG 렌더링
 5. lock_request/lock_release → 요소 단위 잠금 (점선 컬러 테두리 + 사용자명 레이블)
-6. 룸 ID는 URL `?collab=<roomId>` 파라미터로 공유
-7. 비로그인 사용자도 룸 ID로 참여 가능 (익명 처리)
+6. **피그마식 커서 챗 (Cursor Chat)**:
+   - 텍스트 입력창이 아닐 때 `스페이스바 (Spacebar)` 누르면 마우스 커서 위치에 입력 버블 활성화
+   - 입력값 실시간 브로드캐스트 (타이핑 시 다른 사람 커서 옆에 실시간 텍스트 반영)
+   - `Enter` 키 입력 시 메시지 확정(isFinal: true) 처리 후 입력창이 닫히고, 최종 메시지는 5초 동안 유지 후 자동 소멸
+   - `Escape` 키 또는 외부 클릭(Blur) 시 입력 취소
+   - 버블 내부 클릭/마우스다운 시 이벤트 전파 방지 (`stopPropagation`)
+7. 룸 ID는 URL `?collab=<roomId>` 파라미터로 공유
+8. 비로그인 사용자도 룸 ID로 참여 가능 (익명 처리)
 
 **서버 룸 관리:**
 - 메모리 내 Map으로 룸 관리 (재시작 시 초기화)
