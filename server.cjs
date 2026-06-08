@@ -454,7 +454,19 @@ wss.on('connection', (ws, req) => {
       chatText: c.chatText,
       chatIsFinal: c.chatIsFinal,
     })),
-    locks: Object.fromEntries(room.locks),
+    locks: Object.fromEntries(
+      [...room.locks.entries()].map(([nodeId, holderClientId]) => {
+        const client = room.clients.get(holderClientId);
+        return [
+          nodeId,
+          {
+            clientId: holderClientId,
+            username: client ? client.username : 'Anonymous',
+            color: client ? client.color : '#999'
+          }
+        ];
+      })
+    ),
   }));
 
   // Announce new member to existing clients
@@ -501,7 +513,7 @@ wss.on('connection', (ws, req) => {
         const { nodeId } = msg;
         if (room.locks.get(nodeId) === clientId) {
           room.locks.delete(nodeId);
-          broadcastAll({ type: 'lock_released', nodeId, clientId });
+          broadcast({ type: 'lock_released', nodeId, clientId });
         }
         break;
       }

@@ -412,14 +412,28 @@ export const Canvas: React.FC<CanvasProps> = ({ circuit, collab }) => {
 
     // 3. Drag Group of Nodes
     if (draggedNodes.length > 0) {
-      const updates = draggedNodes.map((dn) => {
-        const snapGrid = 20;
-        const targetX = Math.round((coords.x - dn.dragOffsetX) / snapGrid) * snapGrid;
-        const targetY = Math.round((coords.y - dn.dragOffsetY) / snapGrid) * snapGrid;
-        return { id: dn.id, x: targetX, y: targetY };
+    const updates = draggedNodes.map((dn) => {
+      const snapGrid = 20;
+      const targetX = Math.round((coords.x - dn.dragOffsetX) / snapGrid) * snapGrid;
+      const targetY = Math.round((coords.y - dn.dragOffsetY) / snapGrid) * snapGrid;
+      return { id: dn.id, x: targetX, y: targetY };
+    });
+    
+    // 내 화면 즉시 갱신
+    moveNodes(updates);
+    
+    if (collab?.isConnected) {
+      updates.forEach((up) => {
+        // 내가 확실히 락을 쥔 노드일 때만 실시간 브로드캐스트
+        if (collab.iLockedBy(up.id)) {
+          collab.broadcastOp({
+            op: 'MOVE_NODE',
+            payload: { nodeId: up.id, x: up.x, y: up.y }
+          });
+        }
       });
-      moveNodes(updates);
     }
+  }
 
     // 5. Resize Node
     if (resizedNode) {
