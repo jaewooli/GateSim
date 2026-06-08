@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useRef } from 'react';
 import { useCircuitState } from './hooks/useCircuitState';
 import { useCollaboration } from './hooks/useCollaboration';
 import Header from './components/Header';
@@ -11,18 +11,23 @@ import CreateCustomGateModal from './components/CreateCustomGateModal';
 import './App.css';
 
 function App() {
-  const circuit = useCircuitState();
+  const collabRef = useRef<any>(null);
+
+  const circuit = useCircuitState((op) => {
+    collabRef.current?.broadcastOp(op);
+  });
+
   const [isModalOpen, setIsModalOpen] = useState(false);
 
   // ── Collaboration ─────────────────────────────────────────────
   const collab = useCollaboration(
     (_op) => {
-      // TODO: apply remote ops to circuit state (future OT phase)
-      // For now, remote ops are informational. Structural sync is
-      // achieved by sharing a cloud circuit and reloading.
+      circuit.applyRemoteOp(_op);
     },
     circuit.user?.token ?? null,
   );
+
+  collabRef.current = collab;
 
   const handleOpenModal = () => {
     setIsModalOpen(true);

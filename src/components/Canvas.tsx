@@ -445,6 +445,7 @@ export const Canvas: React.FC<CanvasProps> = ({ circuit, collab }) => {
     // Release collab locks for all dragged nodes
     if (collab?.isConnected && draggedNodes.length > 0) {
       draggedNodes.forEach((dn) => handleCollabRelease(dn.id));
+      circuit.setIsDragging(false);
     }
     setIsPanning(false);
     setDraggedNodes([]);

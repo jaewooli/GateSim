@@ -1051,7 +1051,13 @@ function sanitizeCustomGates(record: Record<string, SubCircuitDefinition>): Reco
   return clean;
 }
 
-export function useCircuitState() {
+export function useCircuitState(onLocalOp?: (op: any) => void) {
+  const onLocalOpRef = useRef(onLocalOp);
+  onLocalOpRef.current = onLocalOp;
+
+  const isRemoteUpdateRef = useRef(false);
+  const isDraggingRef = useRef(false);
+
   const location = useLocation();
   const navigate = useNavigate();
   const curriculumMatch = useMatch('/curriculum/:missionId');
@@ -1541,23 +1547,122 @@ export function useCircuitState() {
         const nextState = updater(currState);
         const next = { ...prev, [activeMissionId]: nextState };
         localStorage.setItem('missionStates', JSON.stringify(sanitizeRecord(next)));
+
+        if (!isRemoteUpdateRef.current && !isDraggingRef.current) {
+          setTimeout(() => {
+            if (!isRemoteUpdateRef.current && !isDraggingRef.current) {
+              onLocalOpRef.current?.({
+                op: 'SYNC_CIRCUIT',
+                payload: {
+                  nodes: nextState.nodes,
+                  connections: nextState.connections,
+                  customGates,
+                },
+              });
+            }
+          }, 0);
+        }
+
         return next;
       });
     } else {
       setTabs((prevTabs) => {
+        let broadcastPayload: any = null;
         const nextTabs = prevTabs.map((t) => {
           if (t.id === activeTabId) {
+            const nextState = updater(t.state);
+            broadcastPayload = {
+              nodes: nextState.nodes,
+              connections: nextState.connections,
+            };
             return {
               ...t,
-              state: updater(t.state),
+              state: nextState,
             };
           }
           return t;
         });
+
+        if (broadcastPayload && !isRemoteUpdateRef.current && !isDraggingRef.current) {
+          setTimeout(() => {
+            if (!isRemoteUpdateRef.current && !isDraggingRef.current) {
+              onLocalOpRef.current?.({
+                op: 'SYNC_CIRCUIT',
+                payload: {
+                  nodes: broadcastPayload.nodes,
+                  connections: broadcastPayload.connections,
+                  customGates,
+                },
+              });
+            }
+          }, 0);
+        }
+
         return nextTabs;
       });
     }
-  }, [appMode, activeMissionId, activeTabId]);
+  }, [appMode, activeMissionId, activeTabId, customGates]);
+
+  const applyRemoteOp = useCallback((msg: any) => {
+    isRemoteUpdateRef.current = true;
+    try {
+      if (msg.op === 'SYNC_CIRCUIT') {
+        const { nodes: remoteNodes, connections: remoteConnections, customGates: remoteCustomGates } = msg.payload;
+        
+        updateActiveCircuitState((prev) => ({
+          ...prev,
+          nodes: remoteNodes,
+          connections: remoteConnections,
+        }));
+        
+        if (remoteCustomGates) {
+          setCustomGates(remoteCustomGates);
+        }
+      } else if (msg.op === 'MOVE_NODES') {
+        const updates = msg.payload as { id: string; x: number; y: number }[];
+        const updateMap = new Map(updates.map((u) => [u.id, u]));
+        updateActiveCircuitState((prev) => ({
+          ...prev,
+          nodes: prev.nodes.map((n) => {
+            const update = updateMap.get(n.id);
+            return update ? { ...n, x: update.x, y: update.y } : n;
+          }),
+        }));
+      }
+    } finally {
+      setTimeout(() => {
+        isRemoteUpdateRef.current = false;
+      }, 50);
+    }
+  }, [updateActiveCircuitState]);
+
+  const setIsDragging = useCallback((val: boolean) => {
+    const wasDragging = isDraggingRef.current;
+    isDraggingRef.current = val;
+    if (wasDragging && !val) {
+      onLocalOpRef.current?.({
+        op: 'SYNC_CIRCUIT',
+        payload: {
+          nodes,
+          connections,
+          customGates,
+        },
+      });
+    }
+  }, [nodes, connections, customGates]);
+
+  // Sync customGates changes
+  useEffect(() => {
+    if (isRemoteUpdateRef.current) return;
+    onLocalOpRef.current?.({
+      op: 'SYNC_CIRCUIT',
+      payload: {
+        nodes,
+        connections,
+        customGates,
+      },
+    });
+  }, [customGates]);
 
   // Generate Unique Pin IDs
   const createPinId = (nodeId: string, pinType: 'in' | 'out', index: number) => {
@@ -1666,6 +1771,7 @@ export function useCircuitState() {
 
   // Update multiple Nodes positions (for group dragging)
   const moveNodes = useCallback((updates: { id: string; x: number; y: number }[]) => {
+    isDraggingRef.current = true;
     const updateMap = new Map(updates.map((u) => [u.id, u]));
     updateActiveCircuitState((prev) => ({
       nodes: prev.nodes.map((n) => {
@@ -1674,6 +1780,10 @@ export function useCircuitState() {
       }),
       connections: prev.connections,
     }));
+    onLocalOpRef.current?.({
+      op: 'MOVE_NODES',
+      payload: updates,
+    });
   }, [updateActiveCircuitState]);
 
   // Resize Node
@@ -2684,6 +2794,10 @@ export function useCircuitState() {
     // Wire Draft state
     wireDraft,
     setWireDraft,
+
+    // Collaboration Sync
+    applyRemoteOp,
+    setIsDragging,
   };
 }
 export type CircuitHook = ReturnType<typeof useCircuitState>;
