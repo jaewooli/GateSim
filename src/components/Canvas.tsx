@@ -763,13 +763,17 @@ export const Canvas: React.FC<CanvasProps> = ({ circuit, collab }) => {
       activeDragSelection.forEach((id) => handleCollabLock(id));
     }
   };
-  
+
 useEffect(() => {
     if (!collab?.isConnected) return;
 
     setSelectedNodeIds((prevSelected) => {
       const nextSelected = prevSelected.filter((nodeId) => {
-        return collab.locks[nodeId] !== undefined;
+        const currentLock = collab.locks[nodeId];
+        if (!currentLock || currentLock.clientId === collab.myClientId) {
+          return true;
+        }        
+        return false;
       });
       
       if (prevSelected.length !== nextSelected.length) {
@@ -778,6 +782,7 @@ useEffect(() => {
       return prevSelected;
     });
   }, [collab?.locks, collab?.isConnected, setSelectedNodeIds]);
+  
   // Reset Zoom Control
   const handleZoomReset = () => {
     setTransform({ x: 0, y: 0, zoom: 1 });

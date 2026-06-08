@@ -489,7 +489,6 @@ wss.on('connection', (ws, req) => {
         const existing = room.locks.get(nodeId);
 
         if (!existing || existing.clientId === clientId) {
-          
           const lockInfo = { clientId, username, color };
           room.locks.set(nodeId, lockInfo);
 
