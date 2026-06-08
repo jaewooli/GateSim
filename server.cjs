@@ -446,15 +446,17 @@ wss.on('connection', (ws, req) => {
     clientId,
     color,
     username,
-    members: [...room.clients.entries()].map(([id, c]) => ({
-      clientId: id,
-      username: c.username,
-      color: c.color,
-      cursor: c.cursor,
-      chatText: c.chatText,
-      chatIsFinal: c.chatIsFinal,
-    })),
-    locks: Object.fromEntries(room.locks),
+   members: [...room.clients.entries()]
+  .filter(([id]) => id !== clientId)
+  .map(([id, c]) => ({
+    clientId: id,
+    username: c.username,
+    color: c.color,
+    cursor: c.cursor,
+    chatText: c.chatText,
+    chatIsFinal: c.chatIsFinal,
+  })),
+    locks: Object.fromEntries([...room.locks.entries()]),
   }));
 
   // Announce new member to existing clients
@@ -534,16 +536,17 @@ wss.on('connection', (ws, req) => {
   });
 
   ws.on('close', () => {
-    room.clients.delete(clientId);
-    // Release all locks held by this client
-    for (const [nodeId, locker] of room.locks) {
-      if (locker === clientId) {
-        room.locks.delete(nodeId);
-        broadcast({ type: 'lock_released', nodeId, clientId }, false);
-      }
+  room.clients.delete(clientId);
+
+  for (const [nodeId, locker] of room.locks) {
+
+    if (locker && locker.clientId === clientId) { // 
+      room.locks.delete(nodeId);
+      broadcast({ type: 'lock_released', nodeId, clientId }, false);
     }
-    broadcast({ type: 'member_left', clientId, username });
-  });
+  }
+  broadcast({ type: 'member_left', clientId, username });
+});
 
   ws.on('error', (err) => {
     console.error('[WS] Client error:', err.message);

@@ -133,9 +133,7 @@ export function useCollaboration(
             status: 'connected',
             myClientId: msg.clientId as string,
             myColor: msg.color as string,
-            members: ((msg.members as CollabMember[]) ?? []).filter(
-              (m) => m.clientId !== (msg.clientId as string)
-            ),
+            members: (msg.members as CollabMember[]) ?? [],
             locks: (msg.locks as Record<string, { clientId: string; username: string; color: string }>) ?? {},
           }));
           break;

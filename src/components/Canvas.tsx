@@ -419,20 +419,22 @@ export const Canvas: React.FC<CanvasProps> = ({ circuit, collab }) => {
       return { id: dn.id, x: targetX, y: targetY };
     });
     
-    // 내 화면 즉시 갱신
-    moveNodes(updates);
-    
     if (collab?.isConnected) {
-      updates.forEach((up) => {
-        // 내가 확실히 락을 쥔 노드일 때만 실시간 브로드캐스트
-        if (collab.iLockedBy(up.id)) {
-          collab.broadcastOp({
-            op: 'MOVE_NODE',
-            payload: { nodeId: up.id, x: up.x, y: up.y }
-          });
-        }
-      });
-    }
+    updates.forEach((up) => {
+      const currentLock = collab.locks[up.id];
+      
+      if (!currentLock || currentLock.clientId === collab.myClientId) {
+        moveNodes([up]);
+        
+        collab.broadcastOp({
+          op: 'MOVE_NODE',
+          payload: { nodeId: up.id, x: up.x, y: up.y }
+        });
+      }
+    });
+  } else {
+    moveNodes(updates);
+  }
   }
 
     // 5. Resize Node
@@ -456,11 +458,9 @@ export const Canvas: React.FC<CanvasProps> = ({ circuit, collab }) => {
 
   // Mouseup on Canvas
   const handleCanvasMouseUp = () => {
-    // Release collab locks for all dragged nodes
     if (collab?.isConnected && draggedNodes.length > 0) {
-      draggedNodes.forEach((dn) => handleCollabRelease(dn.id));
-      circuit.setIsDragging(false);
-    }
+    circuit.setIsDragging(false);
+  }
     setIsPanning(false);
     setDraggedNodes([]);
     setSelectionBox(null);
@@ -633,17 +633,6 @@ export const Canvas: React.FC<CanvasProps> = ({ circuit, collab }) => {
       window.addEventListener('touchend', handleTouchButtonRelease);
       return;
     }
-
-    const activeDragSelection = selectedNodeIds.includes(node.id) ? selectedNodeIds : [node.id];
-    const currentDragged = nodes
-      .filter((n) => activeDragSelection.includes(n.id))
-      .map((n) => ({
-        id: n.id,
-        dragOffsetX: coords.x - n.x,
-        dragOffsetY: coords.y - n.y,
-      }));
-
-    setDraggedNodes(currentDragged);
   };
 
   const handlePinTouchStart = (e: React.TouchEvent, pin: Pin, node: Node) => {
@@ -741,27 +730,6 @@ export const Canvas: React.FC<CanvasProps> = ({ circuit, collab }) => {
       window.addEventListener('mouseup', handleButtonRelease);
       return;
     }
-
-    // Prepare group dragging offsets
-    const activeDragSelection = isMulti
-      ? nextSelectedIds
-      : selectedNodeIds.includes(node.id)
-      ? selectedNodeIds
-      : [node.id];
-
-    const currentDragged = nodes
-      .filter((n) => activeDragSelection.includes(n.id))
-      .map((n) => ({
-        id: n.id,
-        dragOffsetX: coords.x - n.x,
-        dragOffsetY: coords.y - n.y,
-      }));
-
-    setDraggedNodes(currentDragged);
-    // Request lock for all nodes being dragged
-    if (collab?.isConnected) {
-      activeDragSelection.forEach((id) => handleCollabLock(id));
-    }
   };
 
 useEffect(() => {
@@ -782,7 +750,33 @@ useEffect(() => {
       return prevSelected;
     });
   }, [collab?.locks, collab?.isConnected, setSelectedNodeIds]);
-  
+const prevSelectedRef = useRef<string[]>([]);
+
+useEffect(() => {
+  if (!collab?.isConnected) return;
+
+  const prevSelected = prevSelectedRef.current;
+  const currentSelected = selectedNodeIds;
+
+  const newlySelected = currentSelected.filter(id => !prevSelected.includes(id));
+  newlySelected.forEach(nodeId => {
+    const currentLock = collab.locks[nodeId];
+    // 다른 사람이 이미 락을 쥐고 있는 게 아니라면 서버에 락 요청
+    if (!currentLock || currentLock.clientId === collab.myClientId) {
+      collab.requestLock(nodeId);
+    }
+  });
+
+  // 2. 이전에는 선택되어 있었지만, 현재는 선택 해제된 노드들 -> 즉시 락 해제
+  const deSelected = prevSelected.filter(id => !currentSelected.includes(id));
+  deSelected.forEach(nodeId => {
+    if (collab.iLockedBy(nodeId)) {
+      collab.releaseLock(nodeId);
+    }
+  });
+
+  prevSelectedRef.current = currentSelected;
+}, [selectedNodeIds, collab?.isConnected, collab?.locks, collab?.myClientId]);
   // Reset Zoom Control
   const handleZoomReset = () => {
     setTransform({ x: 0, y: 0, zoom: 1 });
