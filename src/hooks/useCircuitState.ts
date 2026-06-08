@@ -1559,6 +1559,7 @@ export function useCircuitState(onLocalOp?: (op: any) => void) {
                   connections: nextState.connections,
                   customGates,
                   tabId: activeMissionId,
+                  tabs: [{ id: activeMissionId, name: 'Mission', state: nextState }],
                 },
               });
             }
@@ -1595,6 +1596,7 @@ export function useCircuitState(onLocalOp?: (op: any) => void) {
                   connections: broadcastPayload.connections,
                   customGates,
                   tabId: activeTabId,
+                  tabs: nextTabs.map((t) => ({ id: t.id, name: t.name, state: t.state })),
                 },
               });
             }
@@ -1610,20 +1612,32 @@ export function useCircuitState(onLocalOp?: (op: any) => void) {
     isRemoteUpdateRef.current = true;
     try {
       if (msg.op === 'SYNC_CIRCUIT') {
-        const { nodes: remoteNodes, connections: remoteConnections, customGates: remoteCustomGates, tabId: remoteTabId } = msg.payload;
+        const { nodes: remoteNodes, connections: remoteConnections, customGates: remoteCustomGates, tabId: remoteTabId, tabs: remoteTabsList } = msg.payload;
         
-        setTabs((prevTabs) => prevTabs.map((t) => {
-          if (t.id === remoteTabId) {
-            return {
-              ...t,
-              state: {
-                nodes: remoteNodes,
-                connections: remoteConnections,
-              }
-            };
-          }
-          return t;
-        }));
+        setTabs((prevTabs) => {
+          if (!remoteTabsList) return prevTabs;
+          // Build next tabs list keeping local state except for modified tab
+          const next = remoteTabsList.map((rt: any) => {
+            const localMatch = prevTabs.find((lt) => lt.id === rt.id);
+            if (rt.id === remoteTabId) {
+              return {
+                ...rt,
+                state: {
+                  nodes: remoteNodes,
+                  connections: remoteConnections,
+                }
+              };
+            } else if (localMatch) {
+              return {
+                ...rt,
+                state: localMatch.state
+              };
+            } else {
+              return rt;
+            }
+          });
+          return next;
+        });
         
         if (remoteCustomGates) {
           setCustomGates(remoteCustomGates);
@@ -1669,24 +1683,11 @@ export function useCircuitState(onLocalOp?: (op: any) => void) {
           connections,
           customGates,
           tabId: activeTabId,
+          tabs: tabs.map((t) => ({ id: t.id, name: t.name, state: t.state })),
         },
       });
     }
-  }, [nodes, connections, customGates, activeTabId]);
-
-  // Sync customGates changes
-  useEffect(() => {
-    if (isRemoteUpdateRef.current) return;
-    onLocalOpRef.current?.({
-      op: 'SYNC_CIRCUIT',
-      payload: {
-        nodes,
-        connections,
-        customGates,
-        tabId: activeTabId,
-      },
-    });
-  }, [customGates, activeTabId]);
+  }, [nodes, connections, customGates, activeTabId, tabs]);
 
   // Generate Unique Pin IDs
   const createPinId = (nodeId: string, pinType: 'in' | 'out', index: number) => {
@@ -2096,29 +2097,63 @@ export function useCircuitState(onLocalOp?: (op: any) => void) {
   const createSubCircuitTab = useCallback((name: string) => {
     saveHistory();
     const subId = `sub-${Date.now()}`;
-    setTabs((prev) => [
-      ...prev,
-      {
-        id: subId,
-        name,
-        state: { nodes: [], connections: [] },
-      },
-    ]);
+    setTabs((prev) => {
+      const next = [
+        ...prev,
+        {
+          id: subId,
+          name,
+          state: { nodes: [], connections: [] },
+        },
+      ];
+
+      setTimeout(() => {
+        onLocalOpRef.current?.({
+          op: 'SYNC_CIRCUIT',
+          payload: {
+            nodes: [],
+            connections: [],
+            customGates,
+            tabId: subId,
+            tabs: next,
+          },
+        });
+      }, 0);
+
+      return next;
+    });
     setActiveTabId(subId);
     setTransform(INITIAL_TRANSFORM);
     setSelectedNodeId(null);
     return subId;
-  }, [saveHistory]);
+  }, [saveHistory, customGates]);
 
   // Close / Delete SubCircuit Tab
   const deleteSubCircuitTab = useCallback((tabId: string) => {
     if (tabId === 'main') return;
     saveHistory();
-    setTabs((prev) => prev.filter((t) => t.id !== tabId));
+    setTabs((prev) => {
+      const next = prev.filter((t) => t.id !== tabId);
+
+      setTimeout(() => {
+        onLocalOpRef.current?.({
+          op: 'SYNC_CIRCUIT',
+          payload: {
+            nodes: [],
+            connections: [],
+            customGates,
+            tabId: 'main',
+            tabs: next,
+          },
+        });
+      }, 0);
+
+      return next;
+    });
     setActiveTabId('main');
     setTransform(INITIAL_TRANSFORM);
     setSelectedNodeId(null);
-  }, [saveHistory]);
+  }, [saveHistory, customGates]);
 
   // Create Custom Gate definition from current sub-circuit tab
   const convertTabToCustomGate = useCallback((tabId: string, name: string, color: string) => {
@@ -2145,10 +2180,27 @@ export function useCircuitState(onLocalOp?: (op: any) => void) {
       connections: JSON.parse(JSON.stringify(tabToConvert.state.connections)),
     };
 
-    setCustomGates((prev) => ({
-      ...prev,
-      [tabId]: newDef,
-    }));
+    setCustomGates((prev) => {
+      const next = {
+        ...prev,
+        [tabId]: newDef,
+      };
+
+      setTimeout(() => {
+        onLocalOpRef.current?.({
+          op: 'SYNC_CIRCUIT',
+          payload: {
+            nodes: tabToConvert.state.nodes,
+            connections: tabToConvert.state.connections,
+            customGates: next,
+            tabId,
+            tabs: tabs.map((t) => ({ id: t.id, name: t.name, state: t.state })),
+          },
+        });
+      }, 0);
+
+      return next;
+    });
 
     // Alert completion
     alert(`Custom Gate "${name}" created successfully and added to toolbox!`);
