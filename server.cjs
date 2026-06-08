@@ -454,19 +454,7 @@ wss.on('connection', (ws, req) => {
       chatText: c.chatText,
       chatIsFinal: c.chatIsFinal,
     })),
-    locks: Object.fromEntries(
-      [...room.locks.entries()].map(([nodeId, holderClientId]) => {
-        const client = room.clients.get(holderClientId);
-        return [
-          nodeId,
-          {
-            clientId: holderClientId,
-            username: client ? client.username : 'Anonymous',
-            color: client ? client.color : '#999'
-          }
-        ];
-      })
-    ),
+    locks: Object.fromEntries(room.locks),
   }));
 
   // Announce new member to existing clients
@@ -499,11 +487,21 @@ wss.on('connection', (ws, req) => {
       case 'lock_request': {
         const { nodeId } = msg;
         const existing = room.locks.get(nodeId);
-        if (!existing || existing === clientId) {
-          room.locks.set(nodeId, clientId);
-          broadcastAll({ type: 'lock_acquired', nodeId, clientId, username, color });
+
+        if (!existing || existing.clientId === clientId) {
+          
+          const lockInfo = { clientId, username, color };
+          room.locks.set(nodeId, lockInfo);
+
+          broadcastAll({ 
+            type: 'lock_acquired', 
+            nodeId, 
+            clientId, 
+            username, 
+            color 
+          });
         } else {
-          ws.send(JSON.stringify({ type: 'lock_denied', nodeId, lockedBy: existing }));
+          ws.send(JSON.stringify({ type: 'lock_denied', nodeId, lockedBy: existing.clientId }));
         }
         break;
       }
@@ -511,13 +509,11 @@ wss.on('connection', (ws, req) => {
       // ── Element unlock ───────────────────────────────────────────
       case 'lock_release': {
         const { nodeId } = msg;
-        if (room.locks.get(nodeId) === clientId) {
+        const existing = room.locks.get(nodeId);
+
+        if (existing && existing.clientId === clientId) {
           room.locks.delete(nodeId);
-          broadcastAll({ 
-            type: 'lock_released', 
-            nodeId: nodeId, 
-            clientId: clientId 
-          });
+          broadcastAll({ type: 'lock_released', nodeId, clientId });
         }
         break;
       }

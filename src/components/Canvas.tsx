@@ -717,6 +717,10 @@ export const Canvas: React.FC<CanvasProps> = ({ circuit, collab }) => {
       }
     }
 
+    if (collab?.isConnected) {
+      nextSelectedIds.forEach((id) => handleCollabLock(id));
+    }
+
     // If clicking a switch, button, clock controls, handle interaction
     const coords = getCanvasCoords(e.clientX, e.clientY);
     const targetElement = e.target as SVGElement;
@@ -759,6 +763,7 @@ export const Canvas: React.FC<CanvasProps> = ({ circuit, collab }) => {
       activeDragSelection.forEach((id) => handleCollabLock(id));
     }
   };
+  
 useEffect(() => {
     if (!collab?.isConnected) return;
 
