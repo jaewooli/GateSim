@@ -1057,6 +1057,7 @@ export function useCircuitState(onLocalOp?: (op: any) => void) {
 
   const isRemoteUpdateRef = useRef(false);
   const isDraggingRef = useRef(false);
+  const lastDragSendRef = useRef(0);
 
   const location = useLocation();
   const navigate = useNavigate();
@@ -1780,10 +1781,16 @@ export function useCircuitState(onLocalOp?: (op: any) => void) {
       }),
       connections: prev.connections,
     }));
-    onLocalOpRef.current?.({
-      op: 'MOVE_NODES',
-      payload: updates,
-    });
+    
+    // Throttle drag updates to ~20fps (50ms) to prevent performance lag
+    const now = Date.now();
+    if (now - lastDragSendRef.current >= 50) {
+      lastDragSendRef.current = now;
+      onLocalOpRef.current?.({
+        op: 'MOVE_NODES',
+        payload: updates,
+      });
+    }
   }, [updateActiveCircuitState]);
 
   // Resize Node
