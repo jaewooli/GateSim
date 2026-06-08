@@ -1,7 +1,9 @@
-import React, { useEffect, useState, useRef } from 'react';
+import React, { useEffect, useState, useRef, useCallback } from 'react';
 import type { Node, Pin, NodeType, SubCircuitDefinition } from '../types';
 import type { CircuitHook } from '../hooks/useCircuitState';
+import type { CollabState, CollabActions } from '../hooks/useCollaboration';
 import { sortSubCircuitPorts } from '../utils/simulation';
+import { Minimap } from './Minimap';
 
 export const GATE_WIDTH = 110;
 export const GATE_HEIGHT = 70;
@@ -64,9 +66,10 @@ export function getPinLabel(
 
 interface CanvasProps {
   circuit: CircuitHook;
+  collab?: CollabState & CollabActions;
 }
 
-export const Canvas: React.FC<CanvasProps> = ({ circuit }) => {
+export const Canvas: React.FC<CanvasProps> = ({ circuit, collab }) => {
   const {
     activeTab,
     customGates,
@@ -98,6 +101,21 @@ export const Canvas: React.FC<CanvasProps> = ({ circuit }) => {
   const [selectionBox, setSelectionBox] = useState<{ startX: number; startY: number; currentX: number; currentY: number } | null>(null);
   const [hoveredWireId, setHoveredWireId] = useState<string | null>(null);
   const [resizedNode, setResizedNode] = useState<{ id: string; startWidth: number; startHeight: number; startX: number; startY: number } | null>(null);
+  const [minimapCollapsed, setMinimapCollapsed] = useState(false);
+
+  // Viewport size tracking for minimap
+  const [viewportSize, setViewportSize] = useState({ w: 800, h: 600 });
+  useEffect(() => {
+    if (!svgRef.current) return;
+    const observer = new ResizeObserver((entries) => {
+      const entry = entries[0];
+      if (entry) {
+        setViewportSize({ w: entry.contentRect.width, h: entry.contentRect.height });
+      }
+    });
+    observer.observe(svgRef.current);
+    return () => observer.disconnect();
+  }, []);
 
   // Touch tracking refs for mobile/tablet zoom and pan
   const lastTouchDistance = useRef<number | null>(null);
@@ -282,6 +300,11 @@ export const Canvas: React.FC<CanvasProps> = ({ circuit }) => {
   const handleCanvasMouseMove = (e: React.MouseEvent<SVGSVGElement>) => {
     const coords = getCanvasCoords(e.clientX, e.clientY);
 
+    // Send cursor position to collab peers
+    if (collab?.isConnected) {
+      collab.sendCursor(coords.x, coords.y);
+    }
+
     // 1. Pan Canvas
     if (isPanning) {
       setTransform((prev) => ({
@@ -349,6 +372,10 @@ export const Canvas: React.FC<CanvasProps> = ({ circuit }) => {
 
   // Mouseup on Canvas
   const handleCanvasMouseUp = () => {
+    // Release collab locks for all dragged nodes
+    if (collab?.isConnected && draggedNodes.length > 0) {
+      draggedNodes.forEach((dn) => handleCollabRelease(dn.id));
+    }
     setIsPanning(false);
     setDraggedNodes([]);
     setSelectionBox(null);
@@ -576,6 +603,15 @@ export const Canvas: React.FC<CanvasProps> = ({ circuit }) => {
     setWireDraft(null);
   };
 
+  // Lock node on drag start (collab)
+  const handleCollabLock = useCallback((nodeId: string) => {
+    if (collab?.isConnected) collab.requestLock(nodeId);
+  }, [collab]);
+
+  const handleCollabRelease = useCallback((nodeId: string) => {
+    if (collab?.isConnected) collab.releaseLock(nodeId);
+  }, [collab]);
+
   // Node Drag Start
   const handleNodeMouseDown = (e: React.MouseEvent, node: Node) => {
     e.stopPropagation();
@@ -633,6 +669,10 @@ export const Canvas: React.FC<CanvasProps> = ({ circuit }) => {
       }));
 
     setDraggedNodes(currentDragged);
+    // Request lock for all nodes being dragged
+    if (collab?.isConnected) {
+      activeDragSelection.forEach((id) => handleCollabLock(id));
+    }
   };
 
   // Reset Zoom Control
@@ -1197,6 +1237,74 @@ export const Canvas: React.FC<CanvasProps> = ({ circuit }) => {
               pointerEvents="none"
             />
           )}
+
+          {/* 7. REMOTE CURSORS (collab) */}
+          {collab?.isConnected && collab.members.map((member) => {
+            if (!member.cursor) return null;
+            const { x, y } = member.cursor;
+            return (
+              <g key={member.clientId} transform={`translate(${x}, ${y})`} style={{ pointerEvents: 'none' }}>
+                {/* Cursor arrow */}
+                <path
+                  d="M 0 0 L 0 16 L 4 13 L 7 20 L 9 19 L 6 12 L 11 12 Z"
+                  fill={member.color}
+                  stroke="#fff"
+                  strokeWidth="1"
+                  strokeLinejoin="round"
+                />
+                {/* Username label */}
+                <rect x="12" y="14" width={member.username.length * 7 + 10} height="18" rx="4" fill={member.color} opacity="0.92" />
+                <text x="17" y="27" style={{ fontSize: '11px', fontWeight: 700, fill: '#fff', fontFamily: 'var(--sans)' }}>
+                  {member.username}
+                </text>
+              </g>
+            );
+          })}
+
+          {/* 8. COLLAB LOCK INDICATORS */}
+          {collab?.isConnected && nodes.map((node) => {
+            const lock = collab.locks[node.id];
+            if (!lock) return null;
+            const isMe = lock.clientId === collab.myClientId;
+            const w = getNodeWidth(node);
+            return (
+              <g key={`lock-${node.id}`} style={{ pointerEvents: 'none' }}>
+                <rect
+                  x={node.x - 3}
+                  y={node.y - 3}
+                  width={w + 6}
+                  height={getNodeHeight(node) + 6}
+                  rx={21}
+                  fill="none"
+                  stroke={lock.color}
+                  strokeWidth={isMe ? 2 : 2.5}
+                  strokeDasharray={isMe ? '0' : '5 3'}
+                  opacity={0.85}
+                />
+                {!isMe && (
+                  <>
+                    <rect
+                      x={node.x + w / 2 - 30}
+                      y={node.y - 19}
+                      width={60}
+                      height={16}
+                      rx={4}
+                      fill={lock.color}
+                      opacity={0.92}
+                    />
+                    <text
+                      x={node.x + w / 2}
+                      y={node.y - 7}
+                      textAnchor="middle"
+                      style={{ fontSize: '9px', fontWeight: 700, fill: '#fff', fontFamily: 'var(--sans)' }}
+                    >
+                      {lock.username}
+                    </text>
+                  </>
+                )}
+              </g>
+            );
+          })}
         </g>
       </svg>
 
@@ -1262,6 +1370,17 @@ export const Canvas: React.FC<CanvasProps> = ({ circuit }) => {
           {Math.round(transform.zoom * 100)}%
         </div>
       </div>
+
+      {/* Minimap overlay (bottom-right) */}
+      <Minimap
+        nodes={nodes}
+        transform={transform}
+        viewportW={viewportSize.w}
+        viewportH={viewportSize.h}
+        onPan={(t) => setTransform(t)}
+        collapsed={minimapCollapsed}
+        onToggleCollapse={() => setMinimapCollapsed((v) => !v)}
+      />
     </div>
   );
 };

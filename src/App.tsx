@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { useCircuitState } from './hooks/useCircuitState';
+import { useCollaboration } from './hooks/useCollaboration';
 import Header from './components/Header';
 import Sidebar from './components/Sidebar';
 import Canvas from './components/Canvas';
@@ -12,6 +13,16 @@ import './App.css';
 function App() {
   const circuit = useCircuitState();
   const [isModalOpen, setIsModalOpen] = useState(false);
+
+  // ── Collaboration ─────────────────────────────────────────────
+  const collab = useCollaboration(
+    (_op) => {
+      // TODO: apply remote ops to circuit state (future OT phase)
+      // For now, remote ops are informational. Structural sync is
+      // achieved by sharing a cloud circuit and reloading.
+    },
+    circuit.user?.token ?? null,
+  );
 
   const handleOpenModal = () => {
     setIsModalOpen(true);
@@ -35,6 +46,7 @@ function App() {
         {/* Left Toolbar / Toolbox */}
         <Sidebar
           circuit={circuit}
+          collab={collab}
           onAddNode={(type, customGateId) => {
             // Spawn node in the center of the canvas view
             // Take zoom and pan into account so it spawns on screen
@@ -54,7 +66,7 @@ function App() {
 
         {/* Center Canvas with overlay Dock */}
         <div style={{ flex: 1, position: 'relative', height: '100%', display: 'flex', flexDirection: 'column' }}>
-          <Canvas circuit={circuit} />
+          <Canvas circuit={circuit} collab={collab} />
           <WaveformViewer circuit={circuit} />
           {circuit.appMode === 'curriculum' && (
             <CurriculumDock
@@ -94,6 +106,14 @@ function App() {
         </div>
         
         <div className="status-right">
+          {collab.isConnected && (
+            <>
+              <span className="collab-status-badge">
+                🤝 협업 중 · {collab.members.length + 1}명
+              </span>
+              <div style={{ width: '1px', height: '12px', backgroundColor: 'var(--border-color)' }} />
+            </>
+          )}
           <span>Simulation Ticks: {circuit.stepCount}</span>
           <div style={{ width: '1px', height: '12px', backgroundColor: 'var(--border-color)' }} />
           <span>Active View: {circuit.activeTab.name}</span>

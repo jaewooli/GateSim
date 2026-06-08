@@ -1,9 +1,11 @@
 const express = require('express');
+const http = require('http');
 const path = require('path');
 const fs = require('fs');
 const crypto = require('crypto');
 const jwt = require('jsonwebtoken');
 const sqlite3 = require('sqlite3').verbose();
+const { WebSocketServer, WebSocket } = require('ws');
 
 const app = express();
 const PORT = 8081;
@@ -333,6 +335,201 @@ app.get(`${BASE_PATH}/{*any}`, (req, res) => {
   res.sendFile(path.join(__dirname, 'dist', 'index.html'));
 });
 
-app.listen(PORT, () => {
+// ─────────────────────────────────────────────────────────────────
+//  WebSocket Collaboration Server
+//  - POST /api/collab/rooms        → create a new temp room (returns roomId)
+//  - GET  /api/collab/rooms/:id    → check if room exists
+//  - WS   /ws/collab/:roomId       → join room
+// ─────────────────────────────────────────────────────────────────
+
+/**
+ * @typedef {{ ws: WebSocket, username: string, color: string, cursor: {x:number,y:number}|null }} RoomClient
+ * @typedef {{ clients: Map<string, RoomClient>, locks: Map<string, string>, createdAt: number }} Room
+ */
+
+/** @type {Map<string, Room>} roomId → room state */
+const rooms = new Map();
+
+const CURSOR_COLORS = [
+  '#FF6B6B', '#FFD93D', '#6BCB77', '#4D96FF',
+  '#C77DFF', '#FF9F1C', '#00D9FF', '#FF5E5B',
+];
+
+function getColorForSlot(slot) {
+  return CURSOR_COLORS[slot % CURSOR_COLORS.length];
+}
+
+// Cleanup rooms idle for > 4 hours
+setInterval(() => {
+  const now = Date.now();
+  for (const [id, room] of rooms) {
+    if (now - room.createdAt > 4 * 60 * 60 * 1000 && room.clients.size === 0) {
+      rooms.delete(id);
+    }
+  }
+}, 30 * 60 * 1000);
+
+// REST: Create a new collaboration room
+app.post(`${BASE_PATH}/api/collab/rooms`, authenticateToken, (req, res) => {
+  const roomId = crypto.randomBytes(6).toString('hex');
+  rooms.set(roomId, {
+    clients: new Map(),
+    locks: new Map(),   // nodeId → username of who locked it
+    createdAt: Date.now(),
+  });
+  res.json({ roomId });
+});
+
+// REST: Check if room exists
+app.get(`${BASE_PATH}/api/collab/rooms/:id`, (req, res) => {
+  const room = rooms.get(req.params.id);
+  if (!room) return res.status(404).json({ error: 'Room not found' });
+  res.json({ exists: true, members: room.clients.size });
+});
+
+// Create HTTP server (needed for ws upgrade)
+const server = http.createServer(app);
+
+// WebSocket server (no path filter — we validate manually)
+const wss = new WebSocketServer({ server });
+
+wss.on('connection', (ws, req) => {
+  // Extract roomId from URL: /gatesimulator/ws/collab/<roomId>?token=<jwt>
+  const urlObj = new URL(req.url, `http://${req.headers.host}`);
+  const pathParts = urlObj.pathname.split('/');
+  const roomId = pathParts[pathParts.length - 1];
+  const token = urlObj.searchParams.get('token');
+
+  // Validate JWT
+  let username = 'Anonymous';
+  if (token) {
+    try {
+      const decoded = jwt.verify(token, JWT_SECRET);
+      username = decoded.username;
+    } catch {
+      // allow anonymous
+    }
+  }
+
+  const room = rooms.get(roomId);
+  if (!room) {
+    ws.close(4004, 'Room not found');
+    return;
+  }
+
+  // Assign a unique client ID and color
+  const clientId = crypto.randomBytes(4).toString('hex');
+  const colorSlot = room.clients.size;
+  const color = getColorForSlot(colorSlot);
+
+  /** @type {RoomClient} */
+  const clientInfo = { ws, username, color, cursor: null };
+  room.clients.set(clientId, clientInfo);
+
+  /** Broadcast JSON to all other clients in the room */
+  function broadcast(data, excludeSelf = true) {
+    const msg = JSON.stringify(data);
+    for (const [id, client] of room.clients) {
+      if (excludeSelf && id === clientId) continue;
+      if (client.ws.readyState === WebSocket.OPEN) {
+        client.ws.send(msg);
+      }
+    }
+  }
+
+  /** Broadcast to ALL including self */
+  function broadcastAll(data) { broadcast(data, false); }
+
+  // Send welcome + current member list to joiner
+  ws.send(JSON.stringify({
+    type: 'welcome',
+    clientId,
+    color,
+    username,
+    members: [...room.clients.entries()].map(([id, c]) => ({
+      clientId: id,
+      username: c.username,
+      color: c.color,
+      cursor: c.cursor,
+    })),
+    locks: Object.fromEntries(room.locks),
+  }));
+
+  // Announce new member to existing clients
+  broadcast({
+    type: 'member_joined',
+    clientId,
+    username,
+    color,
+  });
+
+  ws.on('message', (raw) => {
+    let msg;
+    try { msg = JSON.parse(raw.toString()); } catch { return; }
+
+    switch (msg.type) {
+      // ── Cursor position ──────────────────────────────────────────
+      case 'cursor_move':
+        clientInfo.cursor = msg.cursor;
+        broadcast({ type: 'cursor_move', clientId, username, color, cursor: msg.cursor });
+        break;
+
+      // ── Element lock request ─────────────────────────────────────
+      case 'lock_request': {
+        const { nodeId } = msg;
+        const existing = room.locks.get(nodeId);
+        if (!existing || existing === clientId) {
+          room.locks.set(nodeId, clientId);
+          broadcastAll({ type: 'lock_acquired', nodeId, clientId, username, color });
+        } else {
+          ws.send(JSON.stringify({ type: 'lock_denied', nodeId, lockedBy: existing }));
+        }
+        break;
+      }
+
+      // ── Element unlock ───────────────────────────────────────────
+      case 'lock_release': {
+        const { nodeId } = msg;
+        if (room.locks.get(nodeId) === clientId) {
+          room.locks.delete(nodeId);
+          broadcastAll({ type: 'lock_released', nodeId, clientId });
+        }
+        break;
+      }
+
+      // ── Circuit state change (structural edits) ──────────────────
+      case 'circuit_op':
+        // Forward operation to all other clients verbatim
+        broadcast({ ...msg, clientId, username, color });
+        break;
+
+      // ── Ping ─────────────────────────────────────────────────────
+      case 'ping':
+        ws.send(JSON.stringify({ type: 'pong' }));
+        break;
+
+      default:
+        break;
+    }
+  });
+
+  ws.on('close', () => {
+    room.clients.delete(clientId);
+    // Release all locks held by this client
+    for (const [nodeId, locker] of room.locks) {
+      if (locker === clientId) {
+        room.locks.delete(nodeId);
+        broadcast({ type: 'lock_released', nodeId, clientId }, false);
+      }
+    }
+    broadcast({ type: 'member_left', clientId, username });
+  });
+
+  ws.on('error', (err) => {
+    console.error('[WS] Client error:', err.message);
+  });
+});
+
+server.listen(PORT, () => {
   console.log(`GateSim Server (Dynamic) listening on http://localhost:${PORT}${BASE_PATH}`);
 });

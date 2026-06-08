@@ -1,10 +1,13 @@
 import React, { useState, useEffect } from 'react';
 import type { NodeType } from '../types';
 import type { CircuitHook } from '../hooks/useCircuitState';
+import type { CollabState, CollabActions } from '../hooks/useCollaboration';
+import { CollabPanel } from './CollabPanel';
 
 interface SidebarProps {
   circuit: CircuitHook;
   onAddNode: (type: NodeType, customGateId?: string) => void;
+  collab: CollabState & CollabActions;
 }
 
 interface ToolboxItem {
@@ -134,7 +137,7 @@ const SVG_BUS = (
   </svg>
 );
 
-export const Sidebar: React.FC<SidebarProps> = ({ circuit, onAddNode }) => {
+export const Sidebar: React.FC<SidebarProps> = ({ circuit, onAddNode, collab }) => {
   const {
     appMode,
     activeTabId,
@@ -730,6 +733,14 @@ export const Sidebar: React.FC<SidebarProps> = ({ circuit, onAddNode }) => {
               ))
           )}
         </div>
+      </div>
+
+      {/* Collaboration Panel */}
+      <div className="toolbox-group" style={{ borderTop: '2px solid var(--border-color)', paddingTop: '12px', marginTop: '4px' }}>
+        <CollabPanel
+          collab={collab}
+          isLoggedIn={!!circuit.user}
+        />
       </div>
     </div>
   );

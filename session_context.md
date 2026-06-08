@@ -52,11 +52,32 @@
 - 회원가입/로그인 JWT (7일)
 - PBKDF2-SHA512 비밀번호 해싱
 
-### ✅ UI/UX
-- 다크/라이트 테마
-- 헤더 드롭다운: `⋯ More` (Pin Labels, Theme, Shortcuts) / `📁 File` (Export, Import, Clear)
-- ⌨️ 단축키 치트시트 모달
-- 터치 지원 (핀치 줌, 터치 드래그) — `Canvas.tsx`
+### ✅ 미니맵 (Minimap)
+- `src/components/Minimap.tsx` — 우하단 오버레이
+- 전체 노드 BBox 기반 축소 렌더링 (200×140px)
+- 뷰포트 직사각형 표시 (라임 그린 테두리)
+- 클릭 → 해당 위치로 메인 캔버스 팬
+- ▼/▲ 토글로 접기/펴기
+- Canvas.tsx 내 `ResizeObserver`로 뷰포트 크기 추적
+
+### ✅ WebSocket 실시간 협업
+- `server.cjs` — `ws` 패키지 + `http.createServer`로 WebSocket 서버 추가
+- `src/hooks/useCollaboration.ts` — 협업 훅
+- `src/components/CollabPanel.tsx` — Sidebar 하단 협업 UI 패널
+
+**협업 흐름:**
+1. 로그인 사용자가 `POST /api/collab/rooms` → roomId 발급
+2. `WS /gatesimulator/ws/collab/<roomId>?token=<jwt>` 로 WebSocket 연결
+3. welcome 메시지로 현재 멤버 목록 + Lock 상태 수신
+4. cursor_move (20fps 쓰로틀) → 원격 커서 SVG 렌더링
+5. lock_request/lock_release → 요소 단위 잠금 (점선 컬러 테두리 + 사용자명 레이블)
+6. 룸 ID는 URL `?collab=<roomId>` 파라미터로 공유
+7. 비로그인 사용자도 룸 ID로 참여 가능 (익명 처리)
+
+**서버 룸 관리:**
+- 메모리 내 Map으로 룸 관리 (재시작 시 초기화)
+- 4시간 idle 룸 자동 정리 (30분 interval)
+- 8가지 고정 커서 색상 순환 할당
 
 ---
 
@@ -198,12 +219,11 @@ pm2 logs gatesimulator --lines 50
 ---
 
 ### 🟡 보류 (나중에 할 수도 있는 항목)
-- **미니맵** — 전체 노드 bbox를 축소 렌더링하는 오버레이 컴포넌트
 - **회로 코멘트 박스** — 캔버스에 텍스트 주석 노드 타입 (`COMMENT`) 추가
 
 ### 🟢 낮음
-- **공유 링크 만료/비밀번호** — `server.cjs` circuits 테이블에 `expires_at`, `password` 컬럼 추가
-- **WebSocket 협업** — `ws` 패키지로 실시간 공동 편집
+- **WebSocket OT** — 현재는 cursor/lock만 동기화, 향후 circuit_op를 통한 구조적 동기화 추가
+- **룸 영속성** — 현재는 메모리, 향후 DB 저장으로 재시작 후에도 룸 복원
 
 
 ---
