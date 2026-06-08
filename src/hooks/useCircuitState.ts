@@ -1558,6 +1558,7 @@ export function useCircuitState(onLocalOp?: (op: any) => void) {
                   nodes: nextState.nodes,
                   connections: nextState.connections,
                   customGates,
+                  tabId: activeMissionId,
                 },
               });
             }
@@ -1593,6 +1594,7 @@ export function useCircuitState(onLocalOp?: (op: any) => void) {
                   nodes: broadcastPayload.nodes,
                   connections: broadcastPayload.connections,
                   customGates,
+                  tabId: activeTabId,
                 },
               });
             }
@@ -1608,34 +1610,53 @@ export function useCircuitState(onLocalOp?: (op: any) => void) {
     isRemoteUpdateRef.current = true;
     try {
       if (msg.op === 'SYNC_CIRCUIT') {
-        const { nodes: remoteNodes, connections: remoteConnections, customGates: remoteCustomGates } = msg.payload;
+        const { nodes: remoteNodes, connections: remoteConnections, customGates: remoteCustomGates, tabId: remoteTabId } = msg.payload;
         
-        updateActiveCircuitState((prev) => ({
-          ...prev,
-          nodes: remoteNodes,
-          connections: remoteConnections,
+        setTabs((prevTabs) => prevTabs.map((t) => {
+          if (t.id === remoteTabId) {
+            return {
+              ...t,
+              state: {
+                nodes: remoteNodes,
+                connections: remoteConnections,
+              }
+            };
+          }
+          return t;
         }));
         
         if (remoteCustomGates) {
           setCustomGates(remoteCustomGates);
         }
       } else if (msg.op === 'MOVE_NODES') {
-        const updates = msg.payload as { id: string; x: number; y: number }[];
-        const updateMap = new Map(updates.map((u) => [u.id, u]));
-        updateActiveCircuitState((prev) => ({
-          ...prev,
-          nodes: prev.nodes.map((n) => {
-            const update = updateMap.get(n.id);
-            return update ? { ...n, x: update.x, y: update.y } : n;
-          }),
-        }));
+        const { updates, tabId: remoteTabId } = msg.payload;
+        setTabs((prevTabs) => {
+          const updateMap = new Map<string, { id: string; x: number; y: number }>(
+            (updates as any[]).map((u: any) => [u.id, u])
+          );
+          return prevTabs.map((t) => {
+            if (t.id === remoteTabId) {
+              return {
+                ...t,
+                state: {
+                  ...t.state,
+                  nodes: t.state.nodes.map((n) => {
+                    const update = updateMap.get(n.id);
+                    return update ? { ...n, x: update.x, y: update.y } : n;
+                  })
+                }
+              };
+            }
+            return t;
+          });
+        });
       }
     } finally {
       setTimeout(() => {
         isRemoteUpdateRef.current = false;
-      }, 50);
+      }, 100);
     }
-  }, [updateActiveCircuitState]);
+  }, []);
 
   const setIsDragging = useCallback((val: boolean) => {
     const wasDragging = isDraggingRef.current;
@@ -1647,10 +1668,11 @@ export function useCircuitState(onLocalOp?: (op: any) => void) {
           nodes,
           connections,
           customGates,
+          tabId: activeTabId,
         },
       });
     }
-  }, [nodes, connections, customGates]);
+  }, [nodes, connections, customGates, activeTabId]);
 
   // Sync customGates changes
   useEffect(() => {
@@ -1661,9 +1683,10 @@ export function useCircuitState(onLocalOp?: (op: any) => void) {
         nodes,
         connections,
         customGates,
+        tabId: activeTabId,
       },
     });
-  }, [customGates]);
+  }, [customGates, activeTabId]);
 
   // Generate Unique Pin IDs
   const createPinId = (nodeId: string, pinType: 'in' | 'out', index: number) => {
@@ -1788,10 +1811,13 @@ export function useCircuitState(onLocalOp?: (op: any) => void) {
       lastDragSendRef.current = now;
       onLocalOpRef.current?.({
         op: 'MOVE_NODES',
-        payload: updates,
+        payload: {
+          updates,
+          tabId: activeTabId,
+        },
       });
     }
-  }, [updateActiveCircuitState]);
+  }, [updateActiveCircuitState, activeTabId]);
 
   // Resize Node
   const resizeNode = useCallback((nodeId: string, width: number, height: number) => {
