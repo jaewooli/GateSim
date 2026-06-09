@@ -124,6 +124,70 @@ export const Canvas: React.FC<CanvasProps> = ({ circuit, collab }) => {
 
   const latestMouseRef = useRef({ canvasX: 0, canvasY: 0 });
   const chatInputRef = useRef<HTMLInputElement>(null);
+  const previousSelectedNodeIdsRef = useRef<string[]>([]);
+  const transientLockedNodeIdsRef = useRef<string[]>([]);
+  const collabCleanupRef = useRef<Pick<CollabActions, 'iLockedBy' | 'releaseLock'> | null>(null);
+
+  const isNodeLockedByOther = useCallback((nodeId: string) => {
+    if (!collab?.isConnected) return false;
+    const lock = collab.locks[nodeId];
+    return Boolean(lock && lock.clientId !== collab.myClientId);
+  }, [collab?.isConnected, collab?.locks, collab?.myClientId]);
+
+  const canManipulateNodes = useCallback((nodeIds: string[]) => {
+    return nodeIds.every((nodeId) => !isNodeLockedByOther(nodeId));
+  }, [isNodeLockedByOther]);
+
+  const getConnectionNodeIds = useCallback((connId: string) => {
+    const conn = connections.find((c) => c.id === connId);
+    if (!conn) return [];
+    const fromNode = nodes.find((n) => n.outputs.some((p) => p.id === conn.fromPinId));
+    const toNode = nodes.find((n) => n.inputs.some((p) => p.id === conn.toPinId));
+    return [fromNode?.id, toNode?.id].filter((id): id is string => Boolean(id));
+  }, [connections, nodes]);
+
+  const canManipulateConnection = useCallback((connId: string) => {
+    return canManipulateNodes(getConnectionNodeIds(connId));
+  }, [canManipulateNodes, getConnectionNodeIds]);
+
+  const requestTransientLocks = useCallback((nodeIds: string[]) => {
+    if (!collab?.isConnected) return;
+    nodeIds.forEach((nodeId) => {
+      collab.requestLock(nodeId);
+      if (!transientLockedNodeIdsRef.current.includes(nodeId)) {
+        transientLockedNodeIdsRef.current.push(nodeId);
+      }
+    });
+  }, [collab]);
+
+  const releaseTransientLocks = useCallback((nodeIds: string[]) => {
+    if (!collab?.isConnected) {
+      transientLockedNodeIdsRef.current = [];
+      return;
+    }
+    nodeIds.forEach((nodeId) => {
+      if (!selectedNodeIds.includes(nodeId) && collab.iLockedBy(nodeId)) {
+        collab.releaseLock(nodeId);
+      }
+    });
+    transientLockedNodeIdsRef.current = transientLockedNodeIdsRef.current.filter(
+      (nodeId) => !nodeIds.includes(nodeId)
+    );
+  }, [collab, selectedNodeIds]);
+
+  const requestOperationLocks = useCallback((nodeIds: string[]) => {
+    if (!collab?.isConnected) return;
+    nodeIds.forEach((nodeId) => collab.requestLock(nodeId));
+  }, [collab]);
+
+  const releaseOperationLocks = useCallback((nodeIds: string[]) => {
+    if (!collab?.isConnected) return;
+    nodeIds.forEach((nodeId) => {
+      if (!selectedNodeIds.includes(nodeId) && collab.iLockedBy(nodeId)) {
+        collab.releaseLock(nodeId);
+      }
+    });
+  }, [collab, selectedNodeIds]);
 
   // Focus chat input when activated
   useEffect(() => {
@@ -403,7 +467,7 @@ export const Canvas: React.FC<CanvasProps> = ({ circuit, collab }) => {
           node.y < y + h &&
           node.y + nh > y
         );
-        if (nodeOverlaps) {
+        if (nodeOverlaps && !isNodeLockedByOther(node.id)) {
           overlappedIds.push(node.id);
         }
       });
@@ -412,31 +476,22 @@ export const Canvas: React.FC<CanvasProps> = ({ circuit, collab }) => {
 
     // 3. Drag Group of Nodes
     if (draggedNodes.length > 0) {
-    const updates = draggedNodes.map((dn) => {
-      const snapGrid = 20;
-      const targetX = Math.round((coords.x - dn.dragOffsetX) / snapGrid) * snapGrid;
-      const targetY = Math.round((coords.y - dn.dragOffsetY) / snapGrid) * snapGrid;
-      return { id: dn.id, x: targetX, y: targetY };
-    });
-    
-    // 내 화면 즉시 갱신
-    moveNodes(updates);
-    
-    if (collab?.isConnected) {
-      updates.forEach((up) => {
-        // 내가 확실히 락을 쥔 노드일 때만 실시간 브로드캐스트
-        if (collab.iLockedBy(up.id)) {
-          collab.broadcastOp({
-            op: 'MOVE_NODE',
-            payload: { nodeId: up.id, x: up.x, y: up.y }
-          });
-        }
+      const updates = draggedNodes.map((dn) => {
+        const snapGrid = 20;
+        const targetX = Math.round((coords.x - dn.dragOffsetX) / snapGrid) * snapGrid;
+        const targetY = Math.round((coords.y - dn.dragOffsetY) / snapGrid) * snapGrid;
+        return { id: dn.id, x: targetX, y: targetY };
       });
+
+      // 내 화면 즉시 갱신
+      if (canManipulateNodes(updates.map((u) => u.id))) {
+        moveNodes(updates);
+      }
     }
-  }
 
     // 5. Resize Node
     if (resizedNode) {
+      if (!canManipulateNodes([resizedNode.id])) return;
       const dx = coords.x - resizedNode.startX;
       const dy = coords.y - resizedNode.startY;
       const targetWidth = Math.max(80, Math.round((resizedNode.startWidth + dx) / 10) * 10);
@@ -456,11 +511,10 @@ export const Canvas: React.FC<CanvasProps> = ({ circuit, collab }) => {
 
   // Mouseup on Canvas
   const handleCanvasMouseUp = () => {
-    // Release collab locks for all dragged nodes
-    if (collab?.isConnected && draggedNodes.length > 0) {
-      draggedNodes.forEach((dn) => handleCollabRelease(dn.id));
+    if (draggedNodes.length > 0) {
       circuit.setIsDragging(false);
     }
+    releaseTransientLocks([...transientLockedNodeIdsRef.current]);
     setIsPanning(false);
     setDraggedNodes([]);
     setSelectionBox(null);
@@ -491,6 +545,8 @@ export const Canvas: React.FC<CanvasProps> = ({ circuit, collab }) => {
   // Wire Connection Initiation
   const handlePinMouseDown = (e: React.MouseEvent, pin: Pin, node: Node) => {
     e.stopPropagation();
+    if (!canManipulateNodes([node.id])) return;
+    requestTransientLocks([node.id]);
     const pinPos = getPinPosition(node, pin.id);
     setWireDraft({
       fromPinId: pin.id,
@@ -592,13 +648,27 @@ export const Canvas: React.FC<CanvasProps> = ({ circuit, collab }) => {
             inPinId = wireDraft.fromPinId;
           }
           if (outPinId && inPinId) {
-            connectPins(outPinId, inPinId, wireDraft.bitWidth);
+            const sourceNode = nodes.find((n) =>
+              n.inputs.some((p) => p.id === outPinId) ||
+              n.outputs.some((p) => p.id === outPinId)
+            );
+            const targetNode = nodes.find((n) =>
+              n.inputs.some((p) => p.id === inPinId) ||
+              n.outputs.some((p) => p.id === inPinId)
+            );
+            const affectedNodeIds = [sourceNode?.id, targetNode?.id].filter((id): id is string => Boolean(id));
+            if (canManipulateNodes(affectedNodeIds)) {
+              requestTransientLocks(affectedNodeIds);
+              connectPins(outPinId, inPinId, wireDraft.bitWidth);
+              releaseTransientLocks(affectedNodeIds);
+            }
           }
         }
       }
     }
 
     setIsPanning(false);
+    releaseTransientLocks([...transientLockedNodeIdsRef.current]);
     setDraggedNodes([]);
     setSelectionBox(null);
     setWireDraft(null);
@@ -612,6 +682,7 @@ export const Canvas: React.FC<CanvasProps> = ({ circuit, collab }) => {
     e.stopPropagation();
     
     if (!selectedNodeIds.includes(node.id)) {
+      if (!canManipulateNodes([node.id])) return;
       setSelectedNodeIds([node.id]);
     }
 
@@ -620,11 +691,15 @@ export const Canvas: React.FC<CanvasProps> = ({ circuit, collab }) => {
     const targetElement = e.target as SVGElement;
 
     if (targetElement.classList.contains('interactive-switch')) {
+      if (!canManipulateNodes([node.id])) return;
+      if (collab?.isConnected) collab.requestLock(node.id);
       toggleSwitch(node.id);
       return;
     }
 
     if (targetElement.classList.contains('interactive-button')) {
+      if (!canManipulateNodes([node.id])) return;
+      if (collab?.isConnected) collab.requestLock(node.id);
       setButtonState(node.id, true);
       const handleTouchButtonRelease = () => {
         setButtonState(node.id, false);
@@ -644,10 +719,15 @@ export const Canvas: React.FC<CanvasProps> = ({ circuit, collab }) => {
       }));
 
     setDraggedNodes(currentDragged);
+    if (collab?.isConnected) {
+      currentDragged.forEach((dn) => collab.requestLock(dn.id));
+    }
   };
 
   const handlePinTouchStart = (e: React.TouchEvent, pin: Pin, node: Node) => {
     e.stopPropagation();
+    if (!canManipulateNodes([node.id])) return;
+    requestTransientLocks([node.id]);
     const pinPos = getPinPosition(node, pin.id);
     setWireDraft({
       fromPinId: pin.id,
@@ -682,7 +762,20 @@ export const Canvas: React.FC<CanvasProps> = ({ circuit, collab }) => {
       }
 
       if (outPinId && inPinId) {
-        connectPins(outPinId, inPinId, wireDraft.bitWidth);
+        const sourceNode = nodes.find((n) =>
+          n.inputs.some((p) => p.id === outPinId) ||
+          n.outputs.some((p) => p.id === outPinId)
+        );
+        const targetNode = nodes.find((n) =>
+          n.inputs.some((p) => p.id === inPinId) ||
+          n.outputs.some((p) => p.id === inPinId)
+        );
+        const affectedNodeIds = [sourceNode?.id, targetNode?.id].filter((id): id is string => Boolean(id));
+        if (canManipulateNodes(affectedNodeIds)) {
+          requestTransientLocks(affectedNodeIds);
+          connectPins(outPinId, inPinId, wireDraft.bitWidth);
+          releaseTransientLocks(affectedNodeIds);
+        }
       }
     }
     setWireDraft(null);
@@ -693,13 +786,10 @@ export const Canvas: React.FC<CanvasProps> = ({ circuit, collab }) => {
     if (collab?.isConnected) collab.requestLock(nodeId);
   }, [collab]);
 
-  const handleCollabRelease = useCallback((nodeId: string) => {
-    if (collab?.isConnected) collab.releaseLock(nodeId);
-  }, [collab]);
-
   // Node Drag Start
   const handleNodeMouseDown = (e: React.MouseEvent, node: Node) => {
     e.stopPropagation();
+    if (isNodeLockedByOther(node.id)) return;
     
     const isMulti = e.shiftKey || e.ctrlKey || e.metaKey;
     let nextSelectedIds = [...selectedNodeIds];
@@ -710,6 +800,7 @@ export const Canvas: React.FC<CanvasProps> = ({ circuit, collab }) => {
       } else {
         nextSelectedIds.push(node.id);
       }
+      nextSelectedIds = nextSelectedIds.filter((id) => !isNodeLockedByOther(id));
       setSelectedNodeIds(nextSelectedIds);
     } else {
       if (!selectedNodeIds.includes(node.id)) {
@@ -722,11 +813,15 @@ export const Canvas: React.FC<CanvasProps> = ({ circuit, collab }) => {
     const targetElement = e.target as SVGElement;
 
     if (targetElement.classList.contains('interactive-switch')) {
+      if (!canManipulateNodes([node.id])) return;
+      if (collab?.isConnected) collab.requestLock(node.id);
       toggleSwitch(node.id);
       return;
     }
 
     if (targetElement.classList.contains('interactive-button')) {
+      if (!canManipulateNodes([node.id])) return;
+      if (collab?.isConnected) collab.requestLock(node.id);
       setButtonState(node.id, true);
       
       // Register button release listener on window
@@ -744,9 +839,10 @@ export const Canvas: React.FC<CanvasProps> = ({ circuit, collab }) => {
       : selectedNodeIds.includes(node.id)
       ? selectedNodeIds
       : [node.id];
+    const editableDragSelection = activeDragSelection.filter((id) => !isNodeLockedByOther(id));
 
     const currentDragged = nodes
-      .filter((n) => activeDragSelection.includes(n.id))
+      .filter((n) => editableDragSelection.includes(n.id))
       .map((n) => ({
         id: n.id,
         dragOffsetX: coords.x - n.x,
@@ -756,15 +852,48 @@ export const Canvas: React.FC<CanvasProps> = ({ circuit, collab }) => {
     setDraggedNodes(currentDragged);
     // Request lock for all nodes being dragged
     if (collab?.isConnected) {
-      activeDragSelection.forEach((id) => handleCollabLock(id));
+      editableDragSelection.forEach((id) => handleCollabLock(id));
     }
   };
-useEffect(() => {
+
+  useEffect(() => {
+    if (!collab?.isConnected) {
+      previousSelectedNodeIdsRef.current = selectedNodeIds;
+      return;
+    }
+
+    const previous = new Set(previousSelectedNodeIdsRef.current);
+    const current = new Set(selectedNodeIds);
+
+    selectedNodeIds.forEach((nodeId) => {
+      if (!previous.has(nodeId)) {
+        collab.requestLock(nodeId);
+      }
+    });
+
+    previousSelectedNodeIdsRef.current.forEach((nodeId) => {
+      if (!current.has(nodeId) && collab.iLockedBy(nodeId)) {
+        collab.releaseLock(nodeId);
+      }
+    });
+
+    previousSelectedNodeIdsRef.current = selectedNodeIds;
+  }, [collab, selectedNodeIds]);
+
+  useEffect(() => {
+    collabCleanupRef.current = collab?.isConnected
+      ? { iLockedBy: collab.iLockedBy, releaseLock: collab.releaseLock }
+      : null;
+  }, [collab?.isConnected, collab?.iLockedBy, collab?.releaseLock]);
+
+  useEffect(() => {
     if (!collab?.isConnected) return;
 
     setSelectedNodeIds((prevSelected) => {
       const nextSelected = prevSelected.filter((nodeId) => {
-        return collab.locks[nodeId] !== undefined;
+        const lock = collab.locks[nodeId];
+        // Keep selected if the node is not locked, or locked by me
+        return !lock || lock.clientId === collab.myClientId;
       });
       
       if (prevSelected.length !== nextSelected.length) {
@@ -772,7 +901,20 @@ useEffect(() => {
       }
       return prevSelected;
     });
-  }, [collab?.locks, collab?.isConnected, setSelectedNodeIds]);
+  }, [collab?.locks, collab?.isConnected, collab?.myClientId, selectedNodeIds, setSelectedNodeIds]);
+
+  useEffect(() => {
+    return () => {
+      const cleanupCollab = collabCleanupRef.current;
+      if (!cleanupCollab) return;
+      previousSelectedNodeIdsRef.current.forEach((nodeId) => {
+        if (cleanupCollab.iLockedBy(nodeId)) {
+          cleanupCollab.releaseLock(nodeId);
+        }
+      });
+    };
+  }, []);
+
   // Reset Zoom Control
   const handleZoomReset = () => {
     setTransform({ x: 0, y: 0, zoom: 1 });
@@ -875,7 +1017,11 @@ useEffect(() => {
                   d={d}
                   className="wire-path-hover-box"
                   onDoubleClick={() => {
+                    if (!canManipulateConnection(conn.id)) return;
+                    const affectedNodeIds = getConnectionNodeIds(conn.id);
+                    requestOperationLocks(affectedNodeIds);
                     deleteConnection(conn.id);
+                    releaseOperationLocks(affectedNodeIds);
                   }}
                 >
                   <title>Double click to delete connection</title>
@@ -913,7 +1059,11 @@ useEffect(() => {
                       transform={`translate(${midX}, ${midY})`}
                       onClick={(e) => {
                         e.stopPropagation();
+                        if (!canManipulateConnection(conn.id)) return;
+                        const affectedNodeIds = getConnectionNodeIds(conn.id);
+                        requestOperationLocks(affectedNodeIds);
                         deleteConnection(conn.id);
+                        releaseOperationLocks(affectedNodeIds);
                         setHoveredWireId(null);
                       }}
                     >
@@ -1219,6 +1369,8 @@ useEffect(() => {
                     style={{ cursor: 'se-resize' }}
                     onMouseDown={(e) => {
                       e.stopPropagation();
+                      if (!canManipulateNodes([node.id])) return;
+                      if (collab?.isConnected) collab.requestLock(node.id);
                       const coords = getCanvasCoords(e.clientX, e.clientY);
                       setResizedNode({
                         id: node.id,
@@ -1365,41 +1517,21 @@ useEffect(() => {
             if (!lock) return null;
             const isMe = lock.clientId === collab.myClientId;
             const w = getNodeWidth(node);
+            const h = getNodeHeight(node);
             return (
               <g key={`lock-${node.id}`} style={{ pointerEvents: 'none' }}>
                 <rect
-                  x={node.x - 3}
-                  y={node.y - 3}
-                  width={w + 6}
-                  height={getNodeHeight(node) + 6}
-                  rx={21}
+                  x={node.x - 4}
+                  y={node.y - 4}
+                  width={w + 8}
+                  height={h + 8}
+                  rx={20}
                   fill="none"
                   stroke={lock.color}
-                  strokeWidth={isMe ? 2 : 2.5}
-                  strokeDasharray={isMe ? '0' : '5 3'}
-                  opacity={0.85}
+                  strokeWidth={2}
+                  strokeDasharray={isMe ? '0' : '5 4'}
+                  opacity={0.82}
                 />
-                {!isMe && (
-                  <>
-                    <rect
-                      x={node.x + w / 2 - 30}
-                      y={node.y - 19}
-                      width={60}
-                      height={16}
-                      rx={4}
-                      fill={lock.color}
-                      opacity={0.92}
-                    />
-                    <text
-                      x={node.x + w / 2}
-                      y={node.y - 7}
-                      textAnchor="middle"
-                      style={{ fontSize: '9px', fontWeight: 700, fill: '#fff', fontFamily: 'var(--sans)' }}
-                    >
-                      {lock.username}
-                    </text>
-                  </>
-                )}
               </g>
             );
           })}

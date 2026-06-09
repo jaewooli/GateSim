@@ -1,6 +1,7 @@
-import { useState, useRef } from 'react';
+import { useState, useRef, useEffect } from 'react';
 import { useCircuitState } from './hooks/useCircuitState';
 import { useCollaboration } from './hooks/useCollaboration';
+import type { CollabActions } from './hooks/useCollaboration';
 import Header from './components/Header';
 import Sidebar from './components/Sidebar';
 import Canvas from './components/Canvas';
@@ -11,7 +12,8 @@ import CreateCustomGateModal from './components/CreateCustomGateModal';
 import './App.css';
 
 function App() {
-  const collabRef = useRef<any>(null);
+  const collabRef = useRef<Pick<CollabActions, 'broadcastOp'> | null>(null);
+  const initialSyncRoomRef = useRef<string | null>(null);
 
   const circuit = useCircuitState((op) => {
     collabRef.current?.broadcastOp(op);
@@ -27,7 +29,34 @@ function App() {
     circuit.user?.token ?? null,
   );
 
-  collabRef.current = collab;
+  useEffect(() => {
+    collabRef.current = collab;
+  }, [collab]);
+
+  // Synchronize circuit state when first joining an empty collaboration room
+  useEffect(() => {
+    if (
+      collab.isConnected &&
+      collab.members.length === 0 &&
+      collab.roomId &&
+      initialSyncRoomRef.current !== collab.roomId
+    ) {
+      initialSyncRoomRef.current = collab.roomId;
+      collab.broadcastOp({
+        op: 'SYNC_CIRCUIT',
+        payload: {
+          nodes: circuit.activeTab.state.nodes,
+          connections: circuit.activeTab.state.connections,
+          customGates: circuit.customGates,
+          tabId: circuit.activeTabId,
+          tabs: circuit.tabs.map((t) => ({ id: t.id, name: t.name, state: t.state })),
+        },
+      });
+    }
+    if (!collab.isConnected) {
+      initialSyncRoomRef.current = null;
+    }
+  }, [collab, circuit.activeTab.state.nodes, circuit.activeTab.state.connections, circuit.customGates, circuit.activeTabId, circuit.tabs]);
 
   const handleOpenModal = () => {
     setIsModalOpen(true);
@@ -94,7 +123,7 @@ function App() {
 
         {/* Right Inspector Column - Only visible in curriculum mode when a node is selected, or always in sandbox mode */}
         {(circuit.appMode !== 'curriculum' || circuit.selectedNodeId !== null) && (
-          <Inspector circuit={circuit} />
+          <Inspector circuit={circuit} collab={collab} />
         )}
       </div>
 

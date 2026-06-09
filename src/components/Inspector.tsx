@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import type { Node } from '../types';
 import type { CircuitHook } from '../hooks/useCircuitState';
+import type { CollabActions, CollabState } from '../hooks/useCollaboration';
 
 const PRESET_DESCRIPTIONS: Record<string, string> = {
   'sub-half-adder': 'Half Adder: Computes the sum of two 1-bit binary inputs (A and B). It outputs the Sum (S) and a Carry (C) bit. Double-click this component on the canvas to inspect or edit its internal XOR and AND gate layout.',
@@ -15,9 +16,10 @@ const PRESET_DESCRIPTIONS: Record<string, string> = {
 
 interface InspectorProps {
   circuit: CircuitHook;
+  collab?: CollabState & CollabActions;
 }
 
-export const Inspector: React.FC<InspectorProps> = ({ circuit }) => {
+export const Inspector: React.FC<InspectorProps> = ({ circuit, collab }) => {
   const {
     activeTab,
     activeTabId,
@@ -38,6 +40,13 @@ export const Inspector: React.FC<InspectorProps> = ({ circuit }) => {
   } = circuit;
 
   const node = activeTab.state.nodes.find((n) => n.id === selectedNodeId);
+  const isNodeLockedByOther = (nodeId: string) => {
+    if (!collab?.isConnected) return false;
+    const lock = collab.locks[nodeId];
+    return Boolean(lock && lock.clientId !== collab.myClientId);
+  };
+  const canEditNode = (nodeId: string) => !isNodeLockedByOther(nodeId);
+  const selectedHasLockedNode = selectedNodeIds.some(isNodeLockedByOther);
 
   // Helper to format types nicely
   const getReadableType = (n: Node) => {
@@ -70,7 +79,7 @@ export const Inspector: React.FC<InspectorProps> = ({ circuit }) => {
   }, [node?.id, node?.clockInterval]);
 
   const handleLabelChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    if (node) {
+    if (node && canEditNode(node.id)) {
       setNodeLabel(node.id, e.target.value);
     }
   };
@@ -80,7 +89,7 @@ export const Inspector: React.FC<InspectorProps> = ({ circuit }) => {
   };
 
   const handleClockIntervalBlur = () => {
-    if (node) {
+    if (node && canEditNode(node.id)) {
       let val = parseInt(tempInterval, 10);
       if (isNaN(val) || val < 100) {
         val = 100;
@@ -142,7 +151,10 @@ export const Inspector: React.FC<InspectorProps> = ({ circuit }) => {
           {/* Delete Action Button */}
           <button
             className="danger"
-            onClick={() => deleteNode(selectedNodeIds[0])}
+            onClick={() => {
+              if (!selectedHasLockedNode) deleteNode(selectedNodeIds[0]);
+            }}
+            disabled={selectedHasLockedNode}
             style={{ width: '100%' }}
           >
             🗑 Delete Selected Components
@@ -301,6 +313,7 @@ export const Inspector: React.FC<InspectorProps> = ({ circuit }) => {
             className="inspector-input"
             value={node.label || ''}
             onChange={handleLabelChange}
+            disabled={!canEditNode(node.id)}
             placeholder={node.name}
           />
         </div>
@@ -317,6 +330,7 @@ export const Inspector: React.FC<InspectorProps> = ({ circuit }) => {
               onChange={handleClockIntervalChange}
               onBlur={handleClockIntervalBlur}
               onKeyDown={handleClockIntervalKeyDown}
+              disabled={!canEditNode(node.id)}
               min="100"
               step="100"
             />
@@ -333,7 +347,10 @@ export const Inspector: React.FC<InspectorProps> = ({ circuit }) => {
               id="bus-width"
               className="inspector-input"
               value={node.busWidth || 8}
-              onChange={(e) => setBusWidth(node.id, Number(e.target.value) as 8 | 16 | 32)}
+              onChange={(e) => {
+                if (canEditNode(node.id)) setBusWidth(node.id, Number(e.target.value) as 8 | 16 | 32);
+              }}
+              disabled={!canEditNode(node.id)}
             >
               <option value={8}>8-bit</option>
               <option value={16}>16-bit</option>
@@ -350,7 +367,10 @@ export const Inspector: React.FC<InspectorProps> = ({ circuit }) => {
               type="number"
               className="inspector-input"
               value={node.busValue || 0}
-              onChange={(e) => setBusValue(node.id, Number(e.target.value) || 0)}
+              onChange={(e) => {
+                if (canEditNode(node.id)) setBusValue(node.id, Number(e.target.value) || 0);
+              }}
+              disabled={!canEditNode(node.id)}
               min="0"
               max={node.busWidth === 32 ? 0xffffffff : (1 << (node.busWidth || 8)) - 1}
             />
@@ -411,7 +431,10 @@ export const Inspector: React.FC<InspectorProps> = ({ circuit }) => {
         {/* Delete Action Button */}
         <button
           className="danger"
-          onClick={() => deleteNode(node.id)}
+          onClick={() => {
+            if (canEditNode(node.id)) deleteNode(node.id);
+          }}
+          disabled={!canEditNode(node.id)}
           style={{ width: '100%' }}
         >
           🗑 Delete Component

@@ -327,14 +327,6 @@ app.get(`${BASE_PATH}/api/circuits/share/:id`, async (req, res) => {
   }
 });
 
-// Serve frontend static build files
-app.use(BASE_PATH, express.static(path.join(__dirname, 'dist')));
-
-// Fallback: Support client-side routing (React Router)
-app.get(`${BASE_PATH}/{*any}`, (req, res) => {
-  res.sendFile(path.join(__dirname, 'dist', 'index.html'));
-});
-
 // ─────────────────────────────────────────────────────────────────
 //  WebSocket Collaboration Server
 //  - POST /api/collab/rooms        → create a new temp room (returns roomId)
@@ -343,8 +335,8 @@ app.get(`${BASE_PATH}/{*any}`, (req, res) => {
 // ─────────────────────────────────────────────────────────────────
 
 /**
- * @typedef {{ ws: WebSocket, username: string, color: string, cursor: {x:number,y:number}|null }} RoomClient
- * @typedef {{ clients: Map<string, RoomClient>, locks: Map<string, string>, createdAt: number }} Room
+ * @typedef {{ ws: WebSocket, username: string, color: string, cursor: {x:number,y:number}|null, chatText?: string, chatIsFinal?: boolean }} RoomClient
+ * @typedef {{ clients: Map<string, RoomClient>, locks: Map<string, string>, createdAt: number, snapshot: object|null }} Room
  */
 
 /** @type {Map<string, Room>} roomId → room state */
@@ -376,6 +368,7 @@ app.post(`${BASE_PATH}/api/collab/rooms`, authenticateToken, (req, res) => {
     clients: new Map(),
     locks: new Map(),   // nodeId → username of who locked it
     createdAt: Date.now(),
+    snapshot: null,
   });
   res.json({ roomId });
 });
@@ -396,6 +389,10 @@ const wss = new WebSocketServer({ server });
 wss.on('connection', (ws, req) => {
   // Extract roomId from URL: /gatesimulator/ws/collab/<roomId>?token=<jwt>
   const urlObj = new URL(req.url, `http://${req.headers.host}`);
+  if (!urlObj.pathname.startsWith(`${BASE_PATH}/ws/collab/`)) {
+    ws.close(1008, 'Invalid WebSocket path');
+    return;
+  }
   const pathParts = urlObj.pathname.split('/');
   const roomId = pathParts[pathParts.length - 1];
   const token = urlObj.searchParams.get('token');
@@ -426,14 +423,26 @@ wss.on('connection', (ws, req) => {
   const clientInfo = { ws, username, color, cursor: null };
   room.clients.set(clientId, clientInfo);
 
+  function sendJson(targetWs, data) {
+    if (targetWs.readyState !== WebSocket.OPEN) return;
+    try {
+      targetWs.send(JSON.stringify(data), (err) => {
+        if (err && err.code !== 'EPIPE') {
+          console.error('[WS] Send error:', err.message);
+        }
+      });
+    } catch (err) {
+      if (err && err.code !== 'EPIPE') {
+        console.error('[WS] Send error:', err.message);
+      }
+    }
+  }
+
   /** Broadcast JSON to all other clients in the room */
   function broadcast(data, excludeSelf = true) {
-    const msg = JSON.stringify(data);
     for (const [id, client] of room.clients) {
       if (excludeSelf && id === clientId) continue;
-      if (client.ws.readyState === WebSocket.OPEN) {
-        client.ws.send(msg);
-      }
+      sendJson(client.ws, data);
     }
   }
 
@@ -441,19 +450,21 @@ wss.on('connection', (ws, req) => {
   function broadcastAll(data) { broadcast(data, false); }
 
   // Send welcome + current member list to joiner
-  ws.send(JSON.stringify({
+  sendJson(ws, {
     type: 'welcome',
     clientId,
     color,
     username,
-    members: [...room.clients.entries()].map(([id, c]) => ({
-      clientId: id,
-      username: c.username,
-      color: c.color,
-      cursor: c.cursor,
-      chatText: c.chatText,
-      chatIsFinal: c.chatIsFinal,
-    })),
+    members: [...room.clients.entries()]
+      .filter(([id]) => id !== clientId)
+      .map(([id, c]) => ({
+        clientId: id,
+        username: c.username,
+        color: c.color,
+        cursor: c.cursor,
+        chatText: c.chatText,
+        chatIsFinal: c.chatIsFinal,
+      })),
     locks: Object.fromEntries(
       [...room.locks.entries()].map(([nodeId, holderClientId]) => {
         const client = room.clients.get(holderClientId);
@@ -467,7 +478,18 @@ wss.on('connection', (ws, req) => {
         ];
       })
     ),
-  }));
+  });
+
+  if (room.snapshot) {
+    sendJson(ws, {
+      type: 'circuit_op',
+      op: 'SYNC_CIRCUIT',
+      payload: room.snapshot,
+      clientId: 'server',
+      username: 'Room snapshot',
+      color: '#999',
+    });
+  }
 
   // Announce new member to existing clients
   broadcast({
@@ -503,7 +525,7 @@ wss.on('connection', (ws, req) => {
           room.locks.set(nodeId, clientId);
           broadcastAll({ type: 'lock_acquired', nodeId, clientId, username, color });
         } else {
-          ws.send(JSON.stringify({ type: 'lock_denied', nodeId, lockedBy: existing }));
+          sendJson(ws, { type: 'lock_denied', nodeId, lockedBy: existing });
         }
         break;
       }
@@ -524,13 +546,16 @@ wss.on('connection', (ws, req) => {
 
       // ── Circuit state change (structural edits) ──────────────────
       case 'circuit_op':
+        if (msg.op === 'SYNC_CIRCUIT' && msg.payload) {
+          room.snapshot = msg.payload;
+        }
         // Forward operation to all other clients verbatim
         broadcast({ ...msg, clientId, username, color });
         break;
 
       // ── Ping ─────────────────────────────────────────────────────
       case 'ping':
-        ws.send(JSON.stringify({ type: 'pong' }));
+        sendJson(ws, { type: 'pong' });
         break;
 
       default:
@@ -553,6 +578,14 @@ wss.on('connection', (ws, req) => {
   ws.on('error', (err) => {
     console.error('[WS] Client error:', err.message);
   });
+});
+
+// Serve frontend static build files after all API routes.
+app.use(BASE_PATH, express.static(path.join(__dirname, 'dist')));
+
+// Fallback: Support client-side routing (React Router)
+app.get(`${BASE_PATH}/{*any}`, (req, res) => {
+  res.sendFile(path.join(__dirname, 'dist', 'index.html'));
 });
 
 server.listen(PORT, () => {

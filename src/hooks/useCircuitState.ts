@@ -18,6 +18,21 @@ interface CloudCircuit {
   updatedAt?: string;
 }
 
+interface SyncCircuitPayload {
+  nodes: Node[];
+  connections: Connection[];
+  customGates?: Record<string, SubCircuitDefinition>;
+  tabId: string;
+  tabs: Tab[];
+}
+
+interface MoveNodesPayload {
+  updates: { id: string; x: number; y: number }[];
+  tabId: string;
+}
+
+type CollaborationOp = { op: string; payload: unknown };
+
 function createDemoNode(
   id: string,
   type: NodeType,
@@ -1051,9 +1066,11 @@ function sanitizeCustomGates(record: Record<string, SubCircuitDefinition>): Reco
   return clean;
 }
 
-export function useCircuitState(onLocalOp?: (op: any) => void) {
+export function useCircuitState(onLocalOp?: (op: CollaborationOp) => void) {
   const onLocalOpRef = useRef(onLocalOp);
-  onLocalOpRef.current = onLocalOp;
+  useEffect(() => {
+    onLocalOpRef.current = onLocalOp;
+  }, [onLocalOp]);
 
   const isRemoteUpdateRef = useRef(false);
   const isDraggingRef = useRef(false);
@@ -1541,7 +1558,12 @@ export function useCircuitState(onLocalOp?: (op: any) => void) {
 
 
   // Modify active tab circuit state helper
-  const updateActiveCircuitState = useCallback((updater: (state: CircuitState) => CircuitState) => {
+  const updateActiveCircuitState = useCallback((
+    updater: (state: CircuitState) => CircuitState,
+    options: { broadcast?: boolean } = {}
+  ) => {
+    const shouldBroadcast = options.broadcast !== false;
+
     if (appMode === 'curriculum' && activeMissionId) {
       setMissionStates((prev) => {
         const currState = prev[activeMissionId] || { nodes: [], connections: [] };
@@ -1549,9 +1571,9 @@ export function useCircuitState(onLocalOp?: (op: any) => void) {
         const next = { ...prev, [activeMissionId]: nextState };
         localStorage.setItem('missionStates', JSON.stringify(sanitizeRecord(next)));
 
-        if (!isRemoteUpdateRef.current && !isDraggingRef.current) {
+        if (shouldBroadcast && !isRemoteUpdateRef.current && !isDraggingRef.current) {
           setTimeout(() => {
-            if (!isRemoteUpdateRef.current && !isDraggingRef.current) {
+            if (shouldBroadcast && !isRemoteUpdateRef.current && !isDraggingRef.current) {
               onLocalOpRef.current?.({
                 op: 'SYNC_CIRCUIT',
                 payload: {
@@ -1570,14 +1592,9 @@ export function useCircuitState(onLocalOp?: (op: any) => void) {
       });
     } else {
       setTabs((prevTabs) => {
-        let broadcastPayload: any = null;
         const nextTabs = prevTabs.map((t) => {
           if (t.id === activeTabId) {
             const nextState = updater(t.state);
-            broadcastPayload = {
-              nodes: nextState.nodes,
-              connections: nextState.connections,
-            };
             return {
               ...t,
               state: nextState,
@@ -1585,15 +1602,16 @@ export function useCircuitState(onLocalOp?: (op: any) => void) {
           }
           return t;
         });
+        const activeNextTab = nextTabs.find((t) => t.id === activeTabId);
 
-        if (broadcastPayload && !isRemoteUpdateRef.current && !isDraggingRef.current) {
+        if (shouldBroadcast && activeNextTab && !isRemoteUpdateRef.current && !isDraggingRef.current) {
           setTimeout(() => {
-            if (!isRemoteUpdateRef.current && !isDraggingRef.current) {
+            if (shouldBroadcast && !isRemoteUpdateRef.current && !isDraggingRef.current) {
               onLocalOpRef.current?.({
                 op: 'SYNC_CIRCUIT',
                 payload: {
-                  nodes: broadcastPayload.nodes,
-                  connections: broadcastPayload.connections,
+                  nodes: activeNextTab.state.nodes,
+                  connections: activeNextTab.state.connections,
                   customGates,
                   tabId: activeTabId,
                   tabs: nextTabs.map((t) => ({ id: t.id, name: t.name, state: t.state })),
@@ -1608,45 +1626,34 @@ export function useCircuitState(onLocalOp?: (op: any) => void) {
     }
   }, [appMode, activeMissionId, activeTabId, customGates]);
 
-  const applyRemoteOp = useCallback((msg: any) => {
+  const applyRemoteOp = useCallback((msg: CollaborationOp) => {
     isRemoteUpdateRef.current = true;
     try {
       if (msg.op === 'SYNC_CIRCUIT') {
-        const { nodes: remoteNodes, connections: remoteConnections, customGates: remoteCustomGates, tabId: remoteTabId, tabs: remoteTabsList } = msg.payload;
-        
+        const { nodes: remoteNodes, connections: remoteConnections, customGates: remoteCustomGates, tabId: remoteTabId, tabs: remoteTabsList } = msg.payload as SyncCircuitPayload;
+
         setTabs((prevTabs) => {
           if (!remoteTabsList) return prevTabs;
-          // Build next tabs list keeping local state except for modified tab
-          const next = remoteTabsList.map((rt: any) => {
-            const localMatch = prevTabs.find((lt) => lt.id === rt.id);
-            if (rt.id === remoteTabId) {
-              return {
-                ...rt,
-                state: {
-                  nodes: remoteNodes,
-                  connections: remoteConnections,
-                }
-              };
-            } else if (localMatch) {
-              return {
-                ...rt,
-                state: localMatch.state
-              };
-            } else {
-              return rt;
-            }
+          return remoteTabsList.map((rt) => {
+            if (rt.id !== remoteTabId) return rt;
+            return {
+              ...rt,
+              state: {
+                nodes: remoteNodes,
+                connections: remoteConnections,
+              },
+            };
           });
-          return next;
         });
-        
+
         if (remoteCustomGates) {
           setCustomGates(remoteCustomGates);
         }
       } else if (msg.op === 'MOVE_NODES') {
-        const { updates, tabId: remoteTabId } = msg.payload;
+        const { updates, tabId: remoteTabId } = msg.payload as MoveNodesPayload;
         setTabs((prevTabs) => {
           const updateMap = new Map<string, { id: string; x: number; y: number }>(
-            (updates as any[]).map((u: any) => [u.id, u])
+            updates.map((u) => [u.id, u])
           );
           return prevTabs.map((t) => {
             if (t.id === remoteTabId) {
@@ -2320,7 +2327,7 @@ export function useCircuitState(onLocalOp?: (op: any) => void) {
           return { nodes: nextNodes, connections: prevCircuit.connections };
         }
         return prevCircuit;
-      });
+      }, { broadcast: false });
 
       // Regular full simulation run to stabilize values in the active circuit
       updateActiveCircuitState((prevCircuit) => {
@@ -2348,7 +2355,7 @@ export function useCircuitState(onLocalOp?: (op: any) => void) {
         }
 
         return simResult.state;
-      });
+      }, { broadcast: false });
 
     }, 1000 / 30); // Run propagation cycles at 30Hz
 

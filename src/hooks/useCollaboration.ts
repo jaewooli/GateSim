@@ -253,6 +253,7 @@ export function useCollaboration(
     };
 
     ws.onclose = (e) => {
+      if (wsRef.current !== ws) return;
       wsRef.current = null;
       myClientIdRef.current = null;
       setState((prev) => ({
@@ -262,12 +263,14 @@ export function useCollaboration(
         error: e.code === 4004 ? '협업 룸을 찾을 수 없습니다.' : null,
         myClientId: null,
         myColor: null,
+        roomId: e.code === 4004 ? null : prev.roomId,
         members: [],
         locks: {},
       }));
     };
 
     ws.onerror = () => {
+      if (wsRef.current !== ws) return;
       setState((prev) => ({
         ...prev,
         status: 'error',
@@ -348,8 +351,7 @@ export function useCollaboration(
     if (roomParam) {
       joinRoom(roomParam);
     }
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  }, [joinRoom]);
 
   return {
     ...state,

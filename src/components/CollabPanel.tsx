@@ -124,7 +124,15 @@ export const CollabPanel: React.FC<CollabPanelProps> = ({ collab, isLoggedIn }) 
       {/* Header */}
       <div className="collab-panel-title">
         <span className="collab-icon collab-icon--live">🟢</span>
-        협업 중 · 룸 <code className="collab-room-id">{collab.roomId}</code>
+        협업 중 · 룸
+        <input
+          className="collab-room-id"
+          value={collab.roomId ?? ''}
+          readOnly
+          onFocus={(e) => e.currentTarget.select()}
+          onClick={(e) => e.currentTarget.select()}
+          aria-label="협업 룸 ID"
+        />
       </div>
 
       {/* Copy link */}

@@ -1032,8 +1032,18 @@ body.dark-theme .minimap-container {
   font-family: var(--mono);
   background-color: var(--accent-light);
   color: var(--text-primary);
+  border: 1px solid var(--border-color);
   border-radius: 4px;
   padding: 1px 5px;
+  width: 82px;
+  min-width: 0;
+  outline: none;
+  user-select: text;
+  cursor: text;
+}
+
+.collab-room-id:focus {
+  border-color: var(--accent);
 }
 
 .collab-error {
