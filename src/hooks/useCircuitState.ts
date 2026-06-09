@@ -1434,12 +1434,22 @@ export function useCircuitState(onLocalOp?: (op: CollaborationOp) => void) {
       return;
     }
     const circuitId = existingId || `circuit-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
-    // Save the currently active tab as the "featured" tab so that when the circuit is
-    // loaded back (or opened via a share link), the same tab is shown.
+    const activeTabSnapshot = tabs.find((t) => t.id === activeTabId) || tabs[0];
+    const usedCustomGateIds = new Set(
+      activeTabSnapshot.state.nodes
+        .map((node) => node.customGateId)
+        .filter((id): id is string => Boolean(id && customGates[id]))
+    );
+    const customGatesForActiveTab = Object.fromEntries(
+      [...usedCustomGateIds].map((id) => [id, customGates[id]])
+    ) as Record<string, SubCircuitDefinition>;
+
+    // Save only the active tab. Full workspaces can grow large enough to exceed
+    // server request limits and are not needed for "Save Current Circuit".
     const stateData = {
-      tabs,
-      customGates,
-      activeTabId, // Remember which tab was active so share/load restores the right view
+      tabs: [activeTabSnapshot],
+      customGates: customGatesForActiveTab,
+      activeTabId: activeTabSnapshot.id,
     };
     try {
       const response = await fetch('/gatesimulator/api/circuits', {

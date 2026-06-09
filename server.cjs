@@ -97,7 +97,7 @@ initDb().catch(err => {
   console.error("Database initialization failed:", err);
 });
 
-app.use(express.json());
+app.use(express.json({ limit: '2mb' }));
 
 // Password Hashing Helper (PBKDF2)
 const hashPassword = (password, salt = null) => {
